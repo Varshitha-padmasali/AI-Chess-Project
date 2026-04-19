@@ -8,25 +8,35 @@ engine = Stockfish(
 )
 
 def explain_move(move):
-    
+
     if move in ["e2e4", "d2d4"]:
         return "Controls the center and creates space."
 
     elif move in ["g1f3", "b1c3"]:
-        return "Develops a knight and supports center control."
+        return "Develops a knight and supports center."
 
     elif move in ["e1g1", "e8g8"]:
-        return "Kingside castling improves king safety."
-
-    elif move in ["c2c4"]:
-        return "Challenges the center and gains queenside space."
+        return "Improves king safety by castling."
 
     else:
-        return "Strong engine-recommended move improving position."
+        return "Strong engine-recommended move."
 
-@app.route("/")
-def home():
-    return "AI Chess Backend Running"
+def get_win_percent(score):
+
+    if score > 300:
+        return 80, 20
+    elif score > 150:
+        return 65, 35
+    elif score > 50:
+        return 55, 45
+    elif score < -300:
+        return 20, 80
+    elif score < -150:
+        return 35, 65
+    elif score < -50:
+        return 45, 55
+    else:
+        return 50, 50
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -35,20 +45,28 @@ def predict():
     fen = data["fen"]
 
     engine.set_fen_position(fen)
+
     top_moves = engine.get_top_moves(3)
+
+    eval_data = engine.get_evaluation()
+    score = eval_data["value"]
+
+    white, black = get_win_percent(score)
 
     result = []
 
     for item in top_moves:
-        move = item["Move"]
-
         result.append({
-            "move": move,
+            "move": item["Move"],
             "score": item.get("Centipawn", 0),
-            "reason": explain_move(move)
+            "reason": explain_move(item["Move"])
         })
 
-    return jsonify(result)
+    return jsonify({
+        "best_moves": result,
+        "white_win": white,
+        "black_win": black
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
