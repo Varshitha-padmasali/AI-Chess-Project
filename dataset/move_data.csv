@@ -1,0 +1,11 @@
+before_eval,after_eval,diff,label
+120,140,20,Good
+80,70,-10,Good
+150,90,-60,Inaccuracy
+200,50,-150,Mistake
+180,-120,-300,Blunder
+50,55,5,Good
+100,20,-80,Inaccuracy
+220,40,-180,Mistake
+300,-100,-400,Blunder
+0,0,0,Good
