@@ -68,5 +68,56 @@ def predict():
         "black_win": black
     })
 
+@app.route("/analyze_move", methods=["POST"])
+def analyze_move():
+
+    data = request.get_json()
+
+    fen = data["fen"]
+    user_move = data["move"]
+
+    engine.set_fen_position(fen)
+
+    best_move = engine.get_best_move()
+
+    before_eval = engine.get_evaluation()["value"]
+
+    engine.make_moves_from_current_position([user_move])
+
+    after_eval = engine.get_evaluation()["value"]
+
+    diff = after_eval - before_eval
+
+    if diff >= 100:
+        label = "Brilliant"
+        reason = "Your move improved the position strongly."
+
+    elif diff >= 0:
+        label = "Good"
+        reason = "Solid move that maintains advantage."
+
+    elif diff > -100:
+        label = "Inaccuracy"
+        reason = "Playable, but stronger moves existed."
+
+    elif diff > -250:
+        label = "Mistake"
+        reason = "This move weakened your position."
+
+    else:
+        label = "Blunder"
+        reason = "Serious mistake causing major loss."
+
+    white, black = get_win_percent(after_eval)
+
+    return jsonify({
+        "your_move": user_move,
+        "best_move": best_move,
+        "label": label,
+        "reason": reason,
+        "white_win": white,
+        "black_win": black
+    })
+
 if __name__ == "__main__":
     app.run(debug=True)
