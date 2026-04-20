@@ -6,6 +6,7 @@ import axios from "axios";
 function App() {
   const [game, setGame] = useState(new Chess());
   const [moves, setMoves] = useState([]);
+  const [fenInput, setFenInput] = useState("");
 
   function makeMove(move) {
     const gameCopy = new Chess(game.fen());
@@ -28,14 +29,21 @@ function App() {
   }
 
   const predictMoves = async () => {
-    const fen = game.fen();
-
     const response = await axios.post(
       "http://127.0.0.1:5000/predict",
-      { fen: fen }
+      { fen: game.fen() }
     );
 
     setMoves(response.data.best_moves || response.data);
+  };
+
+  const loadFen = () => {
+    try {
+      const newGame = new Chess(fenInput);
+      setGame(newGame);
+    } catch {
+      alert("Invalid FEN");
+    }
   };
 
   return (
@@ -49,13 +57,21 @@ function App() {
         />
       </div>
 
+      <div style={{ marginTop: "20px" }}>
+        <input
+          type="text"
+          placeholder="Paste FEN here"
+          value={fenInput}
+          onChange={(e) => setFenInput(e.target.value)}
+          style={{ width: "400px", padding: "8px" }}
+        />
+
+        <button onClick={loadFen}>Load FEN</button>
+      </div>
+
       <button
         onClick={predictMoves}
-        style={{
-          marginTop: "20px",
-          padding: "10px 20px",
-          fontSize: "16px"
-        }}
+        style={{ marginTop: "20px", padding: "10px 20px" }}
       >
         Predict Best Moves
       </button>
