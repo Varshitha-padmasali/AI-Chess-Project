@@ -1,16 +1,38 @@
 import { useState } from "react";
 import { Chessboard } from "react-chessboard";
+import { Chess } from "chess.js";
 import axios from "axios";
 
 function App() {
+  const [game, setGame] = useState(new Chess());
   const [moves, setMoves] = useState([]);
 
+  function makeMove(move) {
+    const gameCopy = new Chess(game.fen());
+    const result = gameCopy.move(move);
+
+    if (result) {
+      setGame(gameCopy);
+      return true;
+    }
+
+    return false;
+  }
+
+  function onDrop(sourceSquare, targetSquare) {
+    return makeMove({
+      from: sourceSquare,
+      to: targetSquare,
+      promotion: "q"
+    });
+  }
+
   const predictMoves = async () => {
+    const fen = game.fen();
+
     const response = await axios.post(
       "http://127.0.0.1:5000/predict",
-      {
-        fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-      }
+      { fen: fen }
     );
 
     setMoves(response.data.best_moves || response.data);
@@ -21,7 +43,10 @@ function App() {
       <h1>AI Chess Move Predictor</h1>
 
       <div style={{ width: "500px", margin: "auto" }}>
-        <Chessboard />
+        <Chessboard
+          position={game.fen()}
+          onPieceDrop={onDrop}
+        />
       </div>
 
       <button
@@ -29,8 +54,7 @@ function App() {
         style={{
           marginTop: "20px",
           padding: "10px 20px",
-          fontSize: "16px",
-          cursor: "pointer"
+          fontSize: "16px"
         }}
       >
         Predict Best Moves
