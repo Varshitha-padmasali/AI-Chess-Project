@@ -5,6 +5,15 @@ import { Chess } from "chess.js";
 const INITIAL_GAME = new Chess();
 const INITIAL_FEN = INITIAL_GAME.fen();
 const DEFAULT_FEN_SUFFIX = " w - - 0 1";
+const PIECE_VALUES = {
+  p: 1,
+  n: 3,
+  b: 3,
+  r: 5,
+  q: 9,
+  k: 0
+};
+const CENTER_SQUARES = new Set(["d4", "e4", "d5", "e5"]);
 
 function normalizeFenInput(value) {
   const trimmedValue = value.trim();
@@ -22,54 +31,154 @@ function normalizeFenInput(value) {
   return trimmedValue;
 }
 
+function buildMoveReason(move) {
+  const reasons = [];
+
+  if (move.isCapture()) {
+    reasons.push(`wins material by taking a ${move.captured}`);
+  }
+
+  if (move.isPromotion()) {
+    reasons.push(`promotes to a ${move.promotion}`);
+  }
+
+  if (move.san.includes("+")) {
+    reasons.push("gives check");
+  }
+
+  if (CENTER_SQUARES.has(move.to)) {
+    reasons.push("improves central control");
+  }
+
+  if (move.isKingsideCastle() || move.isQueensideCastle()) {
+    reasons.push("improves king safety by castling");
+  }
+
+  if (reasons.length === 0) {
+    reasons.push("develops the position and keeps legal options open");
+  }
+
+  return reasons.join(", ");
+}
+
+function scoreMove(move) {
+  let score = 0;
+
+  if (move.isCapture()) {
+    score += 20 + (PIECE_VALUES[move.captured] || 0);
+  }
+
+  if (move.isPromotion()) {
+    score += 30 + (PIECE_VALUES[move.promotion] || 0);
+  }
+
+  if (move.san.includes("+")) {
+    score += 10;
+  }
+
+  if (CENTER_SQUARES.has(move.to)) {
+    score += 4;
+  }
+
+  if (move.isKingsideCastle() || move.isQueensideCastle()) {
+    score += 6;
+  }
+
+  if (["n", "b"].includes(move.piece) && ["c3", "f3", "c6", "f6"].includes(move.to)) {
+    score += 3;
+  }
+
+  return score;
+}
+
+function getPredictedMoves(fen) {
+  const game = new Chess(fen);
+  const legalMoves = game.moves({ verbose: true });
+
+  return legalMoves
+    .map((move) => ({
+      move: move.san,
+      reason: buildMoveReason(move),
+      score: scoreMove(move)
+    }))
+    .sort((left, right) => right.score - left.score || left.move.localeCompare(right.move))
+    .slice(0, 3)
+    .map(({ score, ...move }) => move);
+}
+
 function App() {
   const [game, setGame] = useState(() => new Chess());
   const [boardFen, setBoardFen] = useState(INITIAL_FEN);
   const [fenInput, setFenInput] = useState("");
-  const [fenError, setFenError] = useState("");
+  const [moves, setMoves] = useState([]);
+  const [error, setError] = useState("");
 
   function onDrop({ sourceSquare, targetSquare }) {
-    if (!targetSquare) return false;
+    if (!targetSquare) {
+      return false;
+    }
 
     const gameCopy = new Chess(game.fen());
-
     const move = gameCopy.move({
       from: sourceSquare,
       to: targetSquare,
       promotion: "q"
     });
 
-    if (move === null) return false;
+    if (move === null) {
+      return false;
+    }
 
+    const updatedFen = gameCopy.fen();
     setGame(gameCopy);
-    setBoardFen(gameCopy.fen());
-    setFenInput(gameCopy.fen());
-    setFenError("");
+    setBoardFen(updatedFen);
+    setFenInput(updatedFen);
+    setMoves([]);
+    setError("");
     return true;
   }
 
   function loadFen() {
     const normalizedFen = normalizeFenInput(fenInput);
-    const newGame = new Chess();
+    const nextGame = new Chess();
 
     if (!normalizedFen) {
-      setFenError("Enter a valid FEN string.");
+      setError("Enter a valid FEN string.");
       return;
     }
 
     try {
       try {
-        newGame.load(normalizedFen);
+        nextGame.load(normalizedFen);
       } catch {
-        newGame.load(normalizedFen, { skipValidation: true });
+        nextGame.load(normalizedFen, { skipValidation: true });
       }
 
-      setGame(newGame);
+      setGame(nextGame);
       setBoardFen(normalizedFen);
       setFenInput(normalizedFen);
-      setFenError("");
-    } catch (error) {
-      setFenError("Invalid FEN. Please check the string and try again.");
+      setMoves([]);
+      setError("");
+    } catch {
+      setError("Invalid FEN. Please check the string and try again.");
+    }
+  }
+
+  function predictMoves() {
+    try {
+      const predictedMoves = getPredictedMoves(boardFen);
+
+      if (predictedMoves.length === 0) {
+        setMoves([]);
+        setError("No legal moves available for this position.");
+        return;
+      }
+
+      setMoves(predictedMoves);
+      setError("");
+    } catch {
+      setMoves([]);
+      setError("Unable to predict moves for this FEN.");
     }
   }
 
@@ -91,8 +200,8 @@ function App() {
         <input
           type="text"
           value={fenInput}
-          onChange={(e) => setFenInput(e.target.value)}
-          placeholder="Paste FEN here, for example rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+          onChange={(event) => setFenInput(event.target.value)}
+          placeholder="Paste FEN here, for example 4k3/8/8/8/8/8/8/4K3"
           style={{ width: "420px", padding: "8px" }}
         />
 
@@ -100,11 +209,27 @@ function App() {
           Load FEN
         </button>
 
-        {fenError ? (
-          <p style={{ color: "#c1121f", marginTop: "10px" }}>
-            {fenError}
-          </p>
-        ) : null}
+        <button
+          onClick={predictMoves}
+          style={{ marginLeft: "10px" }}
+        >
+          Predict Best Moves
+        </button>
+      </div>
+
+      {error ? (
+        <p style={{ color: "red", marginTop: "10px" }}>
+          {error}
+        </p>
+      ) : null}
+
+      <div style={{ marginTop: "20px" }}>
+        {moves.map((item, index) => (
+          <div key={`${item.move}-${index}`}>
+            <h3>{item.move}</h3>
+            <p>{item.reason}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
