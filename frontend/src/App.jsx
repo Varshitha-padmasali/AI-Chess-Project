@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 
@@ -112,6 +113,7 @@ function App() {
   const [fenInput, setFenInput] = useState("");
   const [moves, setMoves] = useState([]);
   const [error, setError] = useState("");
+  const [opening, setOpening] = useState("");
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -182,6 +184,23 @@ function App() {
     }
   }
 
+  async function detectOpening() {
+    try {
+      const movesText = game.history().slice(0, 6).join(" ");
+  
+      const response = await axios.post(
+        "http://127.0.0.1:5000/predict_opening",
+        {
+          moves: movesText
+        }
+      );
+  
+      setOpening(response.data.opening);
+    } catch (error) {
+      setOpening("Unable to detect opening");
+    }
+  }
+
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <h1>AI Chess Move Predictor</h1>
@@ -215,6 +234,13 @@ function App() {
         >
           Predict Best Moves
         </button>
+
+        <button
+          onClick={detectOpening}
+          style={{ marginLeft: "10px" }}
+        >
+          Detect Opening
+        </button>
       </div>
 
       {error ? (
@@ -223,6 +249,12 @@ function App() {
         </p>
       ) : null}
 
+      {opening && (
+        <h2 style={{ marginTop: "20px" }}>
+          Opening: {opening}
+        </h2>
+      )}
+      
       <div style={{ marginTop: "20px" }}>
         {moves.map((item, index) => (
           <div key={`${item.move}-${index}`}>
