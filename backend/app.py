@@ -1,3 +1,4 @@
+import joblib
 from flask import Flask, jsonify, request
 
 try:
@@ -6,6 +7,8 @@ except ImportError:  # pragma: no cover - depends on local environment
     chess = None
 
 app = Flask(__name__)
+
+opening_model = joblib.load("../models/opening_model.pkl")
 
 PIECE_VALUES = {
     chess.PAWN if chess else 1: 1,
@@ -34,6 +37,16 @@ def after_request(response):
 def home():
     return "AI Chess Backend Running"
 
+@app.route("/predict_opening", methods=["POST"])
+def predict_opening():
+    data = request.get_json()
+    moves = data.get("moves", "")
+
+    result = opening_model.predict([moves])[0]
+
+    return jsonify({
+        "opening": result
+    })
 
 @app.route("/predict", methods=["POST", "OPTIONS"])
 def predict():
