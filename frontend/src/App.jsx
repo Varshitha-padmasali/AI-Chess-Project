@@ -114,6 +114,7 @@ function App() {
   const [moves, setMoves] = useState([]);
   const [error, setError] = useState("");
   const [opening, setOpening] = useState("");
+  const [analysis, setAnalysis] = useState("");
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -132,11 +133,15 @@ function App() {
     }
 
     const updatedFen = gameCopy.fen();
+
     setGame(gameCopy);
     setBoardFen(updatedFen);
     setFenInput(updatedFen);
     setMoves([]);
     setError("");
+
+    analyzeMove(move);
+
     return true;
   }
 
@@ -182,6 +187,20 @@ function App() {
       setMoves([]);
       setError("Unable to predict moves for this FEN.");
     }
+  }
+
+  function analyzeMove(move) {
+    let label = "Good Move";
+  
+    if (move.san.includes("+")) {
+      label = "Brilliant Move";
+    } else if (move.captured) {
+      label = "Strong Move";
+    } else if (["e4", "d4", "Nf3", "Nc3"].includes(move.san)) {
+      label = "Good Opening Move";
+    }
+  
+    setAnalysis(label);
   }
 
   async function detectOpening() {
@@ -255,6 +274,12 @@ function App() {
         </h2>
       )}
       
+      {analysis && (
+        <h2 style={{ color: "green", marginTop: "15px" }}>
+          {analysis}
+        </h2>
+      )}
+
       <div style={{ marginTop: "20px" }}>
         {moves.map((item, index) => (
           <div key={`${item.move}-${index}`}>
