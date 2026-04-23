@@ -115,6 +115,8 @@ function App() {
   const [error, setError] = useState("");
   const [opening, setOpening] = useState("");
   const [analysis, setAnalysis] = useState("");
+  const [whiteWin, setWhiteWin] = useState(50);
+  const [blackWin, setBlackWin] = useState(50);
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -141,6 +143,7 @@ function App() {
     setError("");
 
     analyzeMove(move);
+    updateWinBar(gameCopy);
 
     return true;
   }
@@ -219,11 +222,71 @@ function App() {
       setOpening("Unable to detect opening");
     }
   }
-
+  function updateWinBar(currentGame) {
+    const board = currentGame.board();
+  
+    const values = {
+      p: 1,
+      n: 3,
+      b: 3,
+      r: 5,
+      q: 9,
+      k: 0
+    };
+  
+    let whiteScore = 0;
+    let blackScore = 0;
+  
+    for (let row of board) {
+      for (let piece of row) {
+        if (piece) {
+          if (piece.color === "w") {
+            whiteScore += values[piece.type];
+          } else {
+            blackScore += values[piece.type];
+          }
+        }
+      }
+    }
+  
+    const total = whiteScore + blackScore;
+  
+    const whitePercent = Math.round((whiteScore / total) * 100);
+    const blackPercent = 100 - whitePercent;
+  
+    setWhiteWin(whitePercent);
+    setBlackWin(blackPercent);
+  }
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <h1>AI Chess Move Predictor</h1>
+      <div style={{ width: "500px", margin: "20px auto" }}>
+        <div
+          style={{
+            display: "flex",
+            height: "30px",
+            border: "1px solid black"
+          }}
+        >
+          <div
+            style={{
+              width: `${whiteWin}%`,
+              backgroundColor: "white"
+            }}
+          ></div>
 
+          <div
+            style={{
+              width: `${blackWin}%`,
+              backgroundColor: "black"
+            }}
+          ></div>
+        </div>
+
+        <p>
+          White {whiteWin}% | Black {blackWin}%
+        </p>
+    </div>
       <div style={{ width: "500px", margin: "auto" }}>
         <Chessboard
           key={boardFen}
