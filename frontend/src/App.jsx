@@ -277,47 +277,47 @@ function App() {
     textAlign: "center",
     boxShadow: "0 0 10px rgba(0,0,0,0.4)"
   };
-  return (
-    if (mode === "") {
-      return (
+  if (mode === "") {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#121212",
+          color: "white",
+          padding: "40px"
+        }}
+      >
+        <h1 style={{ textAlign: "center" }}>
+          AI Chess Platform
+        </h1>
+  
         <div
           style={{
-            minHeight: "100vh",
-            backgroundColor: "#121212",
-            color: "white",
-            padding: "40px"
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "20px",
+            marginTop: "50px"
           }}
         >
-          <h1 style={{ textAlign: "center" }}>
-            AI Chess Platform
-          </h1>
-    
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "20px",
-              marginTop: "50px"
-            }}
-          >
-            <div style={card} onClick={() => setMode("predict")}>
-              <h2>Predict Next Move</h2>
-              <p>Get top 3 best moves with explanations.</p>
-            </div>
-    
-            <div style={card} onClick={() => setMode("analyzer")}>
-              <h2>Move Analyzer</h2>
-              <p>Know if your move is brilliant or mistake.</p>
-            </div>
-    
-            <div style={card} onClick={() => setMode("twoPlayer")}>
-              <h2>2 Player Game</h2>
-              <p>Play together with live AI insights.</p>
-            </div>
+          <div style={card} onClick={() => setMode("predict")}>
+            <h2>Predict Next Move</h2>
+            <p>Get top 3 best moves with explanations.</p>
+          </div>
+  
+          <div style={card} onClick={() => setMode("analyzer")}>
+            <h2>Move Analyzer</h2>
+            <p>Know if your move is brilliant or mistake.</p>
+          </div>
+  
+          <div style={card} onClick={() => setMode("twoPlayer")}>
+            <h2>2 Player Game</h2>
+            <p>Play together with live AI insights.</p>
           </div>
         </div>
-      );
-    }
+      </div>
+    );
+  }
+  return (
     <div
       style={{
         minHeight: "100vh",
