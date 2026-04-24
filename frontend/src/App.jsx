@@ -118,6 +118,7 @@ function App() {
   const [whiteWin, setWhiteWin] = useState(50);
   const [blackWin, setBlackWin] = useState(50);
   const [turn, setTurn] = useState("White");
+  const [mode, setMode] = useState("");
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -268,7 +269,55 @@ function App() {
     backgroundColor: "#3b82f6",
     color: "white"
   };
+  const card = {
+    backgroundColor: "#1e1e1e",
+    padding: "25px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    textAlign: "center",
+    boxShadow: "0 0 10px rgba(0,0,0,0.4)"
+  };
   return (
+    if (mode === "") {
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "#121212",
+            color: "white",
+            padding: "40px"
+          }}
+        >
+          <h1 style={{ textAlign: "center" }}>
+            AI Chess Platform
+          </h1>
+    
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "20px",
+              marginTop: "50px"
+            }}
+          >
+            <div style={card} onClick={() => setMode("predict")}>
+              <h2>Predict Next Move</h2>
+              <p>Get top 3 best moves with explanations.</p>
+            </div>
+    
+            <div style={card} onClick={() => setMode("analyzer")}>
+              <h2>Move Analyzer</h2>
+              <p>Know if your move is brilliant or mistake.</p>
+            </div>
+    
+            <div style={card} onClick={() => setMode("twoPlayer")}>
+              <h2>2 Player Game</h2>
+              <p>Play together with live AI insights.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
     <div
       style={{
         minHeight: "100vh",
@@ -320,6 +369,9 @@ function App() {
         </div>
   
         <div style={{ marginTop: "15px", textAlign: "center" }}>
+        <button onClick={() => setMode("")} style={btn}>
+          Back Home
+        </button>
           <button onClick={loadFen} style={btn}>
             Load FEN
           </button>
