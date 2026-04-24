@@ -257,99 +257,112 @@ function App() {
     setWhiteWin(whitePercent);
     setBlackWin(blackPercent);
   }
+  const btn = {
+    margin: "5px",
+    padding: "10px 15px",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    backgroundColor: "#3b82f6",
+    color: "white"
+  };
   return (
-    <div style={{ textAlign: "center", marginTop: "20px" }}>
-      <h1>AI Chess Move Predictor</h1>
-      <div style={{ width: "500px", margin: "20px auto" }}>
-        <div
-          style={{
-            display: "flex",
-            height: "30px",
-            border: "1px solid black"
-          }}
-        >
-          <div
-            style={{
-              width: `${whiteWin}%`,
-              backgroundColor: "white"
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#121212",
+        color: "white",
+        padding: "30px",
+        fontFamily: "Arial"
+      }}
+    >
+      <h1 style={{ textAlign: "center" }}>
+        AI Chess Move Predictor
+      </h1>
+  
+      <div
+        style={{
+          maxWidth: "700px",
+          margin: "30px auto",
+          backgroundColor: "#1e1e1e",
+          padding: "25px",
+          borderRadius: "12px",
+          boxShadow: "0 0 15px rgba(0,0,0,0.4)"
+        }}
+      >
+        <div style={{ width: "500px", margin: "auto" }}>
+          <Chessboard
+            key={boardFen}
+            options={{
+              position: boardFen,
+              onPieceDrop: onDrop
             }}
-          ></div>
-
-          <div
-            style={{
-              width: `${blackWin}%`,
-              backgroundColor: "black"
-            }}
-          ></div>
+          />
         </div>
-
-        <p>
-          White {whiteWin}% | Black {blackWin}%
-        </p>
-    </div>
-      <div style={{ width: "500px", margin: "auto" }}>
-        <Chessboard
-          key={boardFen}
-          options={{
-            position: boardFen,
-            onPieceDrop: onDrop
-          }}
-        />
-      </div>
-
-      <div style={{ marginTop: "20px" }}>
-        <input
-          type="text"
-          value={fenInput}
-          onChange={(event) => setFenInput(event.target.value)}
-          placeholder="Paste FEN here, for example 4k3/8/8/8/8/8/8/4K3"
-          style={{ width: "420px", padding: "8px" }}
-        />
-
-        <button onClick={loadFen}>
-          Load FEN
-        </button>
-
-        <button
-          onClick={predictMoves}
-          style={{ marginLeft: "10px" }}
-        >
-          Predict Best Moves
-        </button>
-
-        <button
-          onClick={detectOpening}
-          style={{ marginLeft: "10px" }}
-        >
-          Detect Opening
-        </button>
-      </div>
-
-      {error ? (
-        <p style={{ color: "red", marginTop: "10px" }}>
-          {error}
-        </p>
-      ) : null}
-
-      {opening && (
-        <h2 style={{ marginTop: "20px" }}>
-          Opening: {opening}
-        </h2>
-      )}
-      
-      {analysis && (
-        <h2 style={{ color: "green", marginTop: "15px" }}>
-          {analysis}
-        </h2>
-      )}
-
-      <div style={{ marginTop: "20px" }}>
-        {moves.map((item, index) => (
-          <div key={`${item.move}-${index}`}>
-            <h3>{item.move}</h3>
-            <p>{item.reason}</p>
-          </div>
-        ))}
+  
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <input
+            type="text"
+            value={fenInput}
+            onChange={(e) => setFenInput(e.target.value)}
+            placeholder="Paste FEN here"
+            style={{
+              width: "420px",
+              padding: "10px",
+              borderRadius: "8px",
+              border: "none"
+            }}
+          />
+        </div>
+  
+        <div style={{ marginTop: "15px", textAlign: "center" }}>
+          <button onClick={loadFen} style={btn}>
+            Load FEN
+          </button>
+  
+          <button onClick={predictMoves} style={btn}>
+            Predict Moves
+          </button>
+  
+          <button onClick={detectOpening} style={btn}>
+            Detect Opening
+          </button>
+        </div>
+  
+        {error && (
+          <p style={{ color: "#ff6b6b", textAlign: "center" }}>
+            {error}
+          </p>
+        )}
+  
+        {opening && (
+          <h2 style={{ textAlign: "center" }}>
+            Opening: {opening}
+          </h2>
+        )}
+  
+        {analysis && (
+          <h2 style={{ color: "#51cf66", textAlign: "center" }}>
+            {analysis}
+          </h2>
+        )}
+  
+        <div style={{ marginTop: "20px" }}>
+          {moves.map((item, index) => (
+            <div
+              key={index}
+              style={{
+                backgroundColor: "#2a2a2a",
+                padding: "10px",
+                borderRadius: "8px",
+                marginBottom: "10px"
+              }}
+            >
+              <h3>{item.move}</h3>
+              <p>{item.reason}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
