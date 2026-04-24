@@ -117,6 +117,7 @@ function App() {
   const [analysis, setAnalysis] = useState("");
   const [whiteWin, setWhiteWin] = useState(50);
   const [blackWin, setBlackWin] = useState(50);
+  const [turn, setTurn] = useState("White");
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -137,6 +138,7 @@ function App() {
     const updatedFen = gameCopy.fen();
 
     setGame(gameCopy);
+    setTurn(gameCopy.turn() === "w" ? "White" : "Black");
     setBoardFen(updatedFen);
     setFenInput(updatedFen);
     setMoves([]);
@@ -279,7 +281,9 @@ function App() {
       <h1 style={{ textAlign: "center" }}>
         AI Chess Move Predictor
       </h1>
-  
+      <h2 style={{ textAlign: "center" }}>
+        Turn: {turn}
+      </h2>
       <div
         style={{
           maxWidth: "700px",
@@ -327,8 +331,25 @@ function App() {
           <button onClick={detectOpening} style={btn}>
             Detect Opening
           </button>
+          <button
+            onClick={() => {
+              const freshGame = new Chess();
+              setGame(freshGame);
+              setBoardFen(freshGame.fen());
+              setFenInput("");
+              setMoves([]);
+              setOpening("");
+              setAnalysis("");
+              setTurn("White");
+              setWhiteWin(50);
+              setBlackWin(50);
+            }}
+            style={btn}
+          >
+            Reset Game
+          </button>
         </div>
-  
+          
         {error && (
           <p style={{ color: "#ff6b6b", textAlign: "center" }}>
             {error}
