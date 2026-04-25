@@ -335,6 +335,11 @@ function App() {
         {mode === "analyzer" && "Move Analyzer"}
         {mode === "twoPlayer" && "2 Player Game"}
       </h2>
+      {mode === "twoPlayer" && (
+        <h3 style={{ textAlign: "center" }}>
+          Turn: {game.turn() === "w" ? "White" : "Black"}
+        </h3>
+      )}
       <h2 style={{ textAlign: "center" }}>
         Turn: {turn}
       </h2>
@@ -414,34 +419,28 @@ function App() {
           </p>
         )}
   
-        {opening && (
-          <h2 style={{ textAlign: "center" }}>
-            Opening: {opening}
-          </h2>
-        )}
+      {mode === "analyzer" && opening && (
+        <h2 style={{ textAlign: "center" }}>
+          Opening: {opening}
+        </h2>
+      )}
   
-        {analysis && (
-          <h2 style={{ color: "#51cf66", textAlign: "center" }}>
-            {analysis}
-          </h2>
-        )}
+      {mode === "analyzer" && analysis && (
+        <h2 style={{ color: "#51cf66", textAlign: "center" }}>
+          {analysis}
+        </h2>
+      )}
   
-        <div style={{ marginTop: "20px" }}>
-          {moves.map((item, index) => (
-            <div
-              key={index}
-              style={{
-                backgroundColor: "#2a2a2a",
-                padding: "10px",
-                borderRadius: "8px",
-                marginBottom: "10px"
-              }}
-            >
-              <h3>{item.move}</h3>
-              <p>{item.reason}</p>
-            </div>
-          ))}
-        </div>
+      {mode === "predict" && (
+      <div style={{ marginTop: "20px" }}>
+        {moves.map((item, index) => (
+          <div key={index}>
+            <h3>{item.move}</h3>
+            <p>{item.reason}</p>
+          </div>
+        ))}
+      </div>
+)}
       </div>
     </div>
   );
