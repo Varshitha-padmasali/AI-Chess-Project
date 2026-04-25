@@ -331,6 +331,11 @@ function App() {
         AI Chess Move Predictor
       </h1>
       <h2 style={{ textAlign: "center" }}>
+        {mode === "predict" && "Predict Best Moves"}
+        {mode === "analyzer" && "Move Analyzer"}
+        {mode === "twoPlayer" && "2 Player Game"}
+      </h2>
+      <h2 style={{ textAlign: "center" }}>
         Turn: {turn}
       </h2>
       <div
@@ -369,37 +374,38 @@ function App() {
         </div>
   
         <div style={{ marginTop: "15px", textAlign: "center" }}>
-        <button onClick={() => setMode("")} style={btn}>
-          Back Home
-        </button>
+          <button onClick={() => setMode("")} style={btn}>
+            Back Home
+          </button>
+
           <button onClick={loadFen} style={btn}>
             Load FEN
           </button>
-  
-          <button onClick={predictMoves} style={btn}>
-            Predict Moves
-          </button>
-  
-          <button onClick={detectOpening} style={btn}>
-            Detect Opening
-          </button>
-          <button
-            onClick={() => {
-              const freshGame = new Chess();
-              setGame(freshGame);
-              setBoardFen(freshGame.fen());
-              setFenInput("");
-              setMoves([]);
-              setOpening("");
-              setAnalysis("");
-              setTurn("White");
-              setWhiteWin(50);
-              setBlackWin(50);
-            }}
-            style={btn}
-          >
-            Reset Game
-          </button>
+
+          {mode === "predict" && (
+            <button onClick={predictMoves} style={btn}>
+              Predict Moves
+            </button>
+          )}
+
+          {mode === "analyzer" && (
+            <button onClick={detectOpening} style={btn}>
+              Analyze Position
+            </button>
+          )}
+
+          {mode === "twoPlayer" && (
+            <button
+              onClick={() => {
+                const freshGame = new Chess();
+                setGame(freshGame);
+                setBoardFen(freshGame.fen());
+              }}
+              style={btn}
+            >
+              Reset Game
+            </button>
+          )}
         </div>
           
         {error && (
