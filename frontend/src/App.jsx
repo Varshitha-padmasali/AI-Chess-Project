@@ -123,8 +123,9 @@ function App() {
   const [turn, setTurn] = useState("White");
   const [mode, setMode] = useState("");
   const [customArrows, setCustomArrows] = useState([]);
+  const [selectedMove, setSelectedMove] = useState("");
 
-  function onDrop(sourceSquare, targetSquare) {
+  function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
       return false;
     }
@@ -148,6 +149,7 @@ function App() {
     setFenInput(updatedFen);
     setMoves([]);
     setCustomArrows([]);
+    setSelectedMove("");
     setError("");
 
     analyzeMove(move);
@@ -177,6 +179,7 @@ function App() {
       setFenInput(normalizedFen);
       setMoves([]);
       setCustomArrows([]);
+      setSelectedMove("");
       setError("");
     } catch {
       setError("Invalid FEN. Please check the string and try again.");
@@ -189,10 +192,12 @@ function App() {
 
       setMoves(predictedMoves);
       setCustomArrows([]);
+      setSelectedMove("");
       setError("");
     } catch {
       setMoves([]);
       setCustomArrows([]);
+      setSelectedMove("");
       setError("Unable to predict moves for this position.");
     }
   }
@@ -344,7 +349,7 @@ function App() {
       )}
       <div
         style={{
-          maxWidth: "700px",
+          maxWidth: mode === "predict" ? "1180px" : "700px",
           margin: "30px auto",
           backgroundColor: "#1e1e1e",
           padding: "25px",
@@ -352,15 +357,74 @@ function App() {
           boxShadow: "0 0 15px rgba(0,0,0,0.4)"
         }}
       >
-        <div style={{ width: "500px", margin: "auto" }}>
-          <Chessboard
-            key={boardFen}
-            options={{
-              position: boardFen,
-              onPieceDrop: onDrop,
-              arrows: customArrows
-            }}
-          />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: mode === "predict" ? "500px minmax(280px, 1fr)" : "1fr",
+            gap: "24px",
+            alignItems: "start"
+          }}
+        >
+          <div style={{ width: "500px", margin: "auto" }}>
+            <Chessboard
+              key={boardFen}
+              options={{
+                position: boardFen,
+                onPieceDrop: onDrop,
+                arrows: customArrows
+              }}
+            />
+          </div>
+
+          {mode === "predict" && (
+            <div
+              style={{
+                backgroundColor: "#171717",
+                borderRadius: "12px",
+                padding: "18px",
+                minHeight: "500px"
+              }}
+            >
+              <h2 style={{ marginTop: 0, marginBottom: "16px" }}>
+                Top 3 Moves
+              </h2>
+
+              {moves.length === 0 ? (
+                <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
+                  Click <strong>Predict Moves</strong> to display the top 3 moves with explanations.
+                </p>
+              ) : (
+                moves.map((move, index) => (
+                  <div
+                    key={`${move.san}-${index}`}
+                    onClick={() => {
+                      setCustomArrows([{
+                        startSquare: move.from,
+                        endSquare: move.to,
+                        color: "#22c55e"
+                      }]);
+                      setSelectedMove(move.san);
+                    }}
+                    style={{
+                      backgroundColor: selectedMove === move.san ? "#16351f" : "#2a2a2a",
+                      border: selectedMove === move.san ? "1px solid #22c55e" : "1px solid transparent",
+                      padding: "14px",
+                      marginBottom: "12px",
+                      cursor: "pointer",
+                      borderRadius: "10px"
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: "8px" }}>
+                      {index + 1}. {move.san}
+                    </div>
+                    <div style={{ color: "#cbd5e1", lineHeight: 1.5 }}>
+                      {move.reason}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
   
         <div style={{ marginTop: "20px", textAlign: "center" }}>
@@ -411,6 +475,7 @@ function App() {
                 setOpening("");
                 setAnalysis("");
                 setCustomArrows([]);
+                setSelectedMove("");
                 setWhiteWin(50);
                 setBlackWin(50);
                 setTurn("White");
@@ -440,34 +505,6 @@ function App() {
           {analysis}
         </h2>
       )}
-  
-  {mode === "predict" && (
-  <div style={{ marginTop: "20px" }}>
-    <h2>Top 3 Moves</h2>
-
-    {moves.map((move, index) => (
-      <div
-        key={index}
-        onClick={() => {
-          setCustomArrows([{
-            startSquare: move.from,
-            endSquare: move.to,
-            color: "#22c55e"
-          }]);
-        }}
-        style={{
-          backgroundColor: "#2a2a2a",
-          padding: "10px",
-          margin: "8px",
-          cursor: "pointer",
-          borderRadius: "8px"
-        }}
-      >
-        {index + 1}. {move.san}
-      </div>
-    ))}
-  </div>
-  )}
       </div>
     </div>
   );
