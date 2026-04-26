@@ -121,7 +121,7 @@ function App() {
   const [mode, setMode] = useState("");
   const [customArrows, setCustomArrows] = useState([]);
 
-  function onDrop({ sourceSquare, targetSquare }) {
+  function onDrop(sourceSquare, targetSquare) {
     if (!targetSquare) {
       return false;
     }
@@ -179,11 +179,8 @@ function App() {
   }
 
   function predictMoves() {
-    const gameCopy = new Chess(boardFen);
-  
-    const topMoves = gameCopy.moves({ verbose: true }).slice(0, 3);
-  
-    setMoves(topMoves);
+    const predictedMoves = getPredictedMoves(boardFen);
+    setMoves(predictedMoves);
   }
 
   function analyzeMove(move) {
@@ -342,14 +339,13 @@ function App() {
         }}
       >
         <div style={{ width: "500px", margin: "auto" }}>
-          <Chessboard
-            key={boardFen}
-            options={{
-              position: boardFen,
-              onPieceDrop: onDrop
-            }}
-            customArrows={customArrows}
-          />
+        <Chessboard
+          id="BasicBoard"
+          boardWidth={500}
+          position={boardFen}
+          onPieceDrop={onDrop}
+          customArrows={customArrows}
+        />
         </div>
   
         <div style={{ marginTop: "20px", textAlign: "center" }}>
@@ -392,8 +388,18 @@ function App() {
             <button
               onClick={() => {
                 const freshGame = new Chess();
+
                 setGame(freshGame);
                 setBoardFen(freshGame.fen());
+                setFenInput("");
+                setMoves([]);
+                setOpening("");
+                setAnalysis("");
+                setCustomArrows([]);
+                setWhiteWin(50);
+                setBlackWin(50);
+                setTurn("White");
+                setError("");
               }}
               style={btn}
             >
@@ -427,9 +433,10 @@ function App() {
     {moves.map((move, index) => (
       <div
         key={index}
-        onClick={() =>
-          setCustomArrows([[move.from, move.to]])
-        }
+        onClick={() => {
+          console.log(move.from, move.to);
+          setCustomArrows([[move.from, move.to, "#22c55e"]]);
+        }}
         style={{
           backgroundColor: "#2a2a2a",
           padding: "10px",
