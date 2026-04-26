@@ -119,6 +119,7 @@ function App() {
   const [blackWin, setBlackWin] = useState(50);
   const [turn, setTurn] = useState("White");
   const [mode, setMode] = useState("");
+  const [customArrows, setCustomArrows] = useState([]);
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -178,21 +179,11 @@ function App() {
   }
 
   function predictMoves() {
-    try {
-      const predictedMoves = getPredictedMoves(boardFen);
-
-      if (predictedMoves.length === 0) {
-        setMoves([]);
-        setError("No legal moves available for this position.");
-        return;
-      }
-
-      setMoves(predictedMoves);
-      setError("");
-    } catch {
-      setMoves([]);
-      setError("Unable to predict moves for this FEN.");
-    }
+    const gameCopy = new Chess(boardFen);
+  
+    const topMoves = gameCopy.moves({ verbose: true }).slice(0, 3);
+  
+    setMoves(topMoves);
   }
 
   function analyzeMove(move) {
@@ -340,9 +331,6 @@ function App() {
           Turn: {game.turn() === "w" ? "White" : "Black"}
         </h3>
       )}
-      <h2 style={{ textAlign: "center" }}>
-        Turn: {turn}
-      </h2>
       <div
         style={{
           maxWidth: "700px",
@@ -360,6 +348,7 @@ function App() {
               position: boardFen,
               onPieceDrop: onDrop
             }}
+            customArrows={customArrows}
           />
         </div>
   
@@ -431,16 +420,29 @@ function App() {
         </h2>
       )}
   
-      {mode === "predict" && (
-      <div style={{ marginTop: "20px" }}>
-        {moves.map((item, index) => (
-          <div key={index}>
-            <h3>{item.move}</h3>
-            <p>{item.reason}</p>
-          </div>
-        ))}
+  {mode === "predict" && (
+  <div style={{ marginTop: "20px" }}>
+    <h2>Top 3 Moves</h2>
+
+    {moves.map((move, index) => (
+      <div
+        key={index}
+        onClick={() =>
+          setCustomArrows([[move.from, move.to]])
+        }
+        style={{
+          backgroundColor: "#2a2a2a",
+          padding: "10px",
+          margin: "8px",
+          cursor: "pointer",
+          borderRadius: "8px"
+        }}
+      >
+        {index + 1}. {move.san}
       </div>
-)}
+    ))}
+  </div>
+  )}
       </div>
     </div>
   );
