@@ -99,6 +99,9 @@ function getPredictedMoves(fen) {
   return legalMoves
     .map((move) => ({
       move: move.san,
+      san: move.san,
+      from: move.from,
+      to: move.to,
       reason: buildMoveReason(move),
       score: scoreMove(move)
     }))
@@ -144,6 +147,7 @@ function App() {
     setBoardFen(updatedFen);
     setFenInput(updatedFen);
     setMoves([]);
+    setCustomArrows([]);
     setError("");
 
     analyzeMove(move);
@@ -172,6 +176,7 @@ function App() {
       setBoardFen(normalizedFen);
       setFenInput(normalizedFen);
       setMoves([]);
+      setCustomArrows([]);
       setError("");
     } catch {
       setError("Invalid FEN. Please check the string and try again.");
@@ -179,8 +184,17 @@ function App() {
   }
 
   function predictMoves() {
-    const predictedMoves = getPredictedMoves(boardFen);
-    setMoves(predictedMoves);
+    try {
+      const predictedMoves = getPredictedMoves(boardFen);
+
+      setMoves(predictedMoves);
+      setCustomArrows([]);
+      setError("");
+    } catch {
+      setMoves([]);
+      setCustomArrows([]);
+      setError("Unable to predict moves for this position.");
+    }
   }
 
   function analyzeMove(move) {
@@ -339,13 +353,14 @@ function App() {
         }}
       >
         <div style={{ width: "500px", margin: "auto" }}>
-        <Chessboard
-          id="BasicBoard"
-          boardWidth={500}
-          position={boardFen}
-          onPieceDrop={onDrop}
-          customArrows={customArrows}
-        />
+          <Chessboard
+            key={boardFen}
+            options={{
+              position: boardFen,
+              onPieceDrop: onDrop,
+              arrows: customArrows
+            }}
+          />
         </div>
   
         <div style={{ marginTop: "20px", textAlign: "center" }}>
@@ -434,8 +449,11 @@ function App() {
       <div
         key={index}
         onClick={() => {
-          console.log(move.from, move.to);
-          setCustomArrows([[move.from, move.to, "#22c55e"]]);
+          setCustomArrows([{
+            startSquare: move.from,
+            endSquare: move.to,
+            color: "#22c55e"
+          }]);
         }}
         style={{
           backgroundColor: "#2a2a2a",
