@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
+import "./App.css";
 
 const INITIAL_GAME = new Chess();
 const INITIAL_FEN = INITIAL_GAME.fen();
@@ -204,7 +205,7 @@ function App() {
 
   function analyzeMove(move) {
     let label = "Good Move";
-  
+
     if (move.san.includes("+")) {
       label = "Brilliant Move";
     } else if (move.captured) {
@@ -212,29 +213,25 @@ function App() {
     } else if (["e4", "d4", "Nf3", "Nc3"].includes(move.san)) {
       label = "Good Opening Move";
     }
-  
+
     setAnalysis(label);
   }
 
   async function detectOpening() {
     try {
       const movesText = game.history().slice(0, 6).join(" ");
-  
-      const response = await axios.post(
-        "http://127.0.0.1:5000/predict_opening",
-        {
-          moves: movesText
-        }
-      );
-  
+      const response = await axios.post("http://127.0.0.1:5000/predict_opening", {
+        moves: movesText
+      });
+
       setOpening(response.data.opening);
-    } catch (error) {
+    } catch (requestError) {
       setOpening("Unable to detect opening");
     }
   }
+
   function updateWinBar(currentGame) {
     const board = currentGame.board();
-  
     const values = {
       p: 1,
       n: 3,
@@ -243,12 +240,12 @@ function App() {
       q: 9,
       k: 0
     };
-  
+
     let whiteScore = 0;
     let blackScore = 0;
-  
-    for (let row of board) {
-      for (let piece of row) {
+
+    for (const row of board) {
+      for (const piece of row) {
         if (piece) {
           if (piece.color === "w") {
             whiteScore += values[piece.type];
@@ -258,254 +255,206 @@ function App() {
         }
       }
     }
-  
+
     const total = whiteScore + blackScore;
-  
     const whitePercent = Math.round((whiteScore / total) * 100);
     const blackPercent = 100 - whitePercent;
-  
+
     setWhiteWin(whitePercent);
     setBlackWin(blackPercent);
   }
-  const btn = {
-    margin: "5px",
-    padding: "10px 15px",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    backgroundColor: "#3b82f6",
-    color: "white"
-  };
-  const card = {
-    backgroundColor: "#1e1e1e",
-    padding: "25px",
-    borderRadius: "12px",
-    cursor: "pointer",
-    textAlign: "center",
-    boxShadow: "0 0 10px rgba(0,0,0,0.4)"
-  };
+
+  function resetGame() {
+    const freshGame = new Chess();
+
+    setGame(freshGame);
+    setBoardFen(freshGame.fen());
+    setFenInput("");
+    setMoves([]);
+    setOpening("");
+    setAnalysis("");
+    setCustomArrows([]);
+    setSelectedMove("");
+    setWhiteWin(50);
+    setBlackWin(50);
+    setTurn("White");
+    setError("");
+  }
+
   if (mode === "") {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#121212",
-          color: "white",
-          padding: "40px"
-        }}
-      >
-        <h1 style={{ textAlign: "center" }}>
-          AI Chess Platform
-        </h1>
-  
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "20px",
-            marginTop: "50px"
-          }}
-        >
-          <div style={card} onClick={() => setMode("predict")}>
-            <h2>Predict Next Move</h2>
-            <p>Get top 3 best moves with explanations.</p>
+      <div className="app-shell">
+        <div className="app-bg-orb app-bg-orb-left" />
+        <div className="app-bg-orb app-bg-orb-right" />
+
+        <section className="landing-page fade-in">
+          <div className="hero-header">
+            <p className="hero-eyebrow">Premium Chess Intelligence</p>
+            <h1 className="hero-title">AI Chess Platform</h1>
+            <p className="hero-subtitle">
+              Explore prediction, analysis, and multiplayer tools in one polished workspace.
+            </p>
           </div>
-  
-          <div style={card} onClick={() => setMode("analyzer")}>
-            <h2>Move Analyzer</h2>
-            <p>Know if your move is brilliant or mistake.</p>
+
+          <div className="mode-grid">
+            <button className="mode-card" onClick={() => setMode("predict")}>
+              <span className="mode-badge">01</span>
+              <h2>Predict Next Move</h2>
+              <p>Get the top 3 best moves with clear explanations and arrow guidance.</p>
+            </button>
+
+            <button className="mode-card" onClick={() => setMode("analyzer")}>
+              <span className="mode-badge">02</span>
+              <h2>Move Analyzer</h2>
+              <p>Review the strength of your moves and understand the position better.</p>
+            </button>
+
+            <button className="mode-card" onClick={() => setMode("twoPlayer")}>
+              <span className="mode-badge">03</span>
+              <h2>2 Player Game</h2>
+              <p>Play on the same board with live AI insights and responsive visuals.</p>
+            </button>
           </div>
-  
-          <div style={card} onClick={() => setMode("twoPlayer")}>
-            <h2>2 Player Game</h2>
-            <p>Play together with live AI insights.</p>
-          </div>
-        </div>
+        </section>
       </div>
     );
   }
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#121212",
-        color: "white",
-        padding: "30px",
-        fontFamily: "Arial"
-      }}
-    >
-      <h1 style={{ textAlign: "center" }}>
-        AI Chess Move Predictor
-      </h1>
-      <h2 style={{ textAlign: "center" }}>
-        {mode === "predict" && "Predict Best Moves"}
-        {mode === "analyzer" && "Move Analyzer"}
-        {mode === "twoPlayer" && "2 Player Game"}
-      </h2>
-      {mode === "twoPlayer" && (
-        <h3 style={{ textAlign: "center" }}>
-          Turn: {game.turn() === "w" ? "White" : "Black"}
-        </h3>
-      )}
-      <div
-        style={{
-          maxWidth: mode === "predict" ? "1180px" : "700px",
-          margin: "30px auto",
-          backgroundColor: "#1e1e1e",
-          padding: "25px",
-          borderRadius: "12px",
-          boxShadow: "0 0 15px rgba(0,0,0,0.4)"
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: mode === "predict" ? "500px minmax(280px, 1fr)" : "1fr",
-            gap: "24px",
-            alignItems: "start"
-          }}
-        >
-          <div style={{ width: "500px", margin: "auto" }}>
-            <Chessboard
-              key={boardFen}
-              options={{
-                position: boardFen,
-                onPieceDrop: onDrop,
-                arrows: customArrows
-              }}
-            />
+    <div className="app-shell">
+      <div className="app-bg-orb app-bg-orb-left" />
+      <div className="app-bg-orb app-bg-orb-right" />
+
+      <main className="chess-page fade-in">
+        <header className="page-header">
+          <p className="hero-eyebrow">Predict Best Moves with AI</p>
+          <h1 className="page-title">AI Chess Move Predictor</h1>
+          <p className="page-subtitle">
+            Premium move suggestions, interactive arrows, and FEN-based position loading.
+          </p>
+
+          <div className="page-meta">
+            <span className="page-meta-pill">{mode === "predict" && "Predict Best Moves"}</span>
+            <span className="page-meta-pill">{mode === "analyzer" && "Move Analyzer"}</span>
+            <span className="page-meta-pill">{mode === "twoPlayer" && "2 Player Game"}</span>
+            {mode === "twoPlayer" && (
+              <span className="page-meta-pill accent-pill">
+                Turn: {turn}
+              </span>
+            )}
+          </div>
+        </header>
+
+        <section className={`workspace-card ${mode === "predict" ? "workspace-card-wide" : ""}`}>
+          <div className={`workspace-grid ${mode === "predict" ? "workspace-grid-predict" : ""}`}>
+            <div className="board-card">
+              <div className="board-card-header">
+                <div>
+                  <p className="section-label">Live Board</p>
+                  <h2 className="section-title">Current Position</h2>
+                </div>
+                <div className="board-status">
+                  <span>White {whiteWin}%</span>
+                  <span>Black {blackWin}%</span>
+                </div>
+              </div>
+
+              <div className="board-frame">
+                <div className="board-glow" />
+                <Chessboard
+                  key={boardFen}
+                  options={{
+                    position: boardFen,
+                    onPieceDrop: onDrop,
+                    arrows: customArrows
+                  }}
+                />
+              </div>
+            </div>
+
+            {mode === "predict" && (
+              <aside className="moves-card">
+                <div className="moves-card-header">
+                  <div>
+                    <p className="section-label">Move Suggestions</p>
+                    <h2 className="section-title">Top 3 Best Moves</h2>
+                  </div>
+                  <span className="panel-chip">{moves.length}/3 Ready</span>
+                </div>
+
+                {moves.length === 0 ? (
+                  <div className="empty-state">
+                    <p>Click <strong>Predict Moves</strong> to generate the top 3 moves with explanations.</p>
+                  </div>
+                ) : (
+                  <div className="moves-list">
+                    {moves.map((move, index) => (
+                      <button
+                        key={`${move.san}-${index}`}
+                        className={`move-card ${selectedMove === move.san ? "move-card-active" : ""}`}
+                        onClick={() => {
+                          setCustomArrows([{
+                            startSquare: move.from,
+                            endSquare: move.to,
+                            color: "#22c55e"
+                          }]);
+                          setSelectedMove(move.san);
+                        }}
+                      >
+                        <span className="move-rank">#{index + 1}</span>
+                        <div className="move-content">
+                          <div className="move-name">{move.san}</div>
+                          <div className="move-reason">{move.reason}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </aside>
+            )}
           </div>
 
-          {mode === "predict" && (
-            <div
-              style={{
-                backgroundColor: "#171717",
-                borderRadius: "12px",
-                padding: "18px",
-                minHeight: "500px"
-              }}
-            >
-              <h2 style={{ marginTop: 0, marginBottom: "16px" }}>
-                Top 3 Moves
-              </h2>
+          <div className="controls-block">
+            <div className="fen-wrapper">
+              <input
+                className="fen-input"
+                type="text"
+                value={fenInput}
+                onChange={(event) => setFenInput(event.target.value)}
+                placeholder="Paste FEN here"
+              />
+            </div>
 
-              {moves.length === 0 ? (
-                <p style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
-                  Click <strong>Predict Moves</strong> to display the top 3 moves with explanations.
-                </p>
-              ) : (
-                moves.map((move, index) => (
-                  <div
-                    key={`${move.san}-${index}`}
-                    onClick={() => {
-                      setCustomArrows([{
-                        startSquare: move.from,
-                        endSquare: move.to,
-                        color: "#22c55e"
-                      }]);
-                      setSelectedMove(move.san);
-                    }}
-                    style={{
-                      backgroundColor: selectedMove === move.san ? "#16351f" : "#2a2a2a",
-                      border: selectedMove === move.san ? "1px solid #22c55e" : "1px solid transparent",
-                      padding: "14px",
-                      marginBottom: "12px",
-                      cursor: "pointer",
-                      borderRadius: "10px"
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, marginBottom: "8px" }}>
-                      {index + 1}. {move.san}
-                    </div>
-                    <div style={{ color: "#cbd5e1", lineHeight: 1.5 }}>
-                      {move.reason}
-                    </div>
-                  </div>
-                ))
+            <div className="actions-row">
+              <button className="action-button action-button-secondary" onClick={() => setMode("")}>
+                Back Home
+              </button>
+              <button className="action-button" onClick={loadFen}>
+                Load FEN
+              </button>
+              {mode === "predict" && (
+                <button className="action-button" onClick={predictMoves}>
+                  Predict Moves
+                </button>
+              )}
+              {mode === "analyzer" && (
+                <button className="action-button" onClick={detectOpening}>
+                  Analyze Position
+                </button>
+              )}
+              {mode === "twoPlayer" && (
+                <button className="action-button" onClick={resetGame}>
+                  Reset Game
+                </button>
               )}
             </div>
-          )}
-        </div>
-  
-        <div style={{ marginTop: "20px", textAlign: "center" }}>
-          <input
-            type="text"
-            value={fenInput}
-            onChange={(e) => setFenInput(e.target.value)}
-            placeholder="Paste FEN here"
-            style={{
-              width: "420px",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "none"
-            }}
-          />
-        </div>
-  
-        <div style={{ marginTop: "15px", textAlign: "center" }}>
-          <button onClick={() => setMode("")} style={btn}>
-            Back Home
-          </button>
 
-          <button onClick={loadFen} style={btn}>
-            Load FEN
-          </button>
-
-          {mode === "predict" && (
-            <button onClick={predictMoves} style={btn}>
-              Predict Moves
-            </button>
-          )}
-
-          {mode === "analyzer" && (
-            <button onClick={detectOpening} style={btn}>
-              Analyze Position
-            </button>
-          )}
-
-          {mode === "twoPlayer" && (
-            <button
-              onClick={() => {
-                const freshGame = new Chess();
-
-                setGame(freshGame);
-                setBoardFen(freshGame.fen());
-                setFenInput("");
-                setMoves([]);
-                setOpening("");
-                setAnalysis("");
-                setCustomArrows([]);
-                setSelectedMove("");
-                setWhiteWin(50);
-                setBlackWin(50);
-                setTurn("White");
-                setError("");
-              }}
-              style={btn}
-            >
-              Reset Game
-            </button>
-          )}
-        </div>
-          
-        {error && (
-          <p style={{ color: "#ff6b6b", textAlign: "center" }}>
-            {error}
-          </p>
-        )}
-  
-      {mode === "analyzer" && opening && (
-        <h2 style={{ textAlign: "center" }}>
-          Opening: {opening}
-        </h2>
-      )}
-  
-      {mode === "analyzer" && analysis && (
-        <h2 style={{ color: "#51cf66", textAlign: "center" }}>
-          {analysis}
-        </h2>
-      )}
-      </div>
+            {error && <p className="status-message error-message">{error}</p>}
+            {mode === "analyzer" && opening && <p className="status-message info-message">Opening: {opening}</p>}
+            {mode === "analyzer" && analysis && <p className="status-message success-message">{analysis}</p>}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
