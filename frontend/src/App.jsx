@@ -7,16 +7,6 @@ import "./App.css";
 const INITIAL_GAME = new Chess();
 const INITIAL_FEN = INITIAL_GAME.fen();
 const DEFAULT_FEN_SUFFIX = " w - - 0 1";
-const PIECE_VALUES = {
-  p: 1,
-  n: 3,
-  b: 3,
-  r: 5,
-  q: 9,
-  k: 0
-};
-const CENTER_SQUARES = new Set(["d4", "e4", "d5", "e5"]);
-
 function normalizeFenInput(value) {
   const trimmedValue = value.trim();
 
@@ -31,36 +21,6 @@ function normalizeFenInput(value) {
   }
 
   return trimmedValue;
-}
-
-function buildMoveReason(move) {
-  const reasons = [];
-
-  if (move.isCapture()) {
-    reasons.push(`wins material by taking a ${move.captured}`);
-  }
-
-  if (move.isPromotion()) {
-    reasons.push(`promotes to a ${move.promotion}`);
-  }
-
-  if (move.san.includes("+")) {
-    reasons.push("gives check");
-  }
-
-  if (CENTER_SQUARES.has(move.to)) {
-    reasons.push("improves central control");
-  }
-
-  if (move.isKingsideCastle() || move.isQueensideCastle()) {
-    reasons.push("improves king safety by castling");
-  }
-
-  if (reasons.length === 0) {
-    reasons.push("develops the position and keeps legal options open");
-  }
-
-  return reasons.join(", ");
 }
 
 function App() {
@@ -144,14 +104,17 @@ function App() {
       const currentGame = new Chess(boardFen);
       const legalMoves = currentGame.moves({ verbose: true });
       const legalMovesBySan = new Map(
-        legalMoves.map((move) => [move.san, move])
+        legalMoves.map((move) => [
+          `${move.from}${move.to}${move.promotion || ""}`,
+          move
+        ])
       );
       const response = await axios.post("http://127.0.0.1:5000/predict", {
-        history: game.history(),
+        fen: boardFen,
         top_n: 3
       });
-      const datasetMoves = response.data.best_moves || [];
-      const predictedMoves = datasetMoves
+      const stockfishMoves = response.data.best_moves || [];
+      const predictedMoves = stockfishMoves
         .map((item) => {
           const legalMove = legalMovesBySan.get(item.move);
 
@@ -164,7 +127,7 @@ function App() {
             san: legalMove.san,
             from: legalMove.from,
             to: legalMove.to,
-            reason: item.reason || buildMoveReason(legalMove),
+            reason: item.reason || "Recommended by Stockfish.",
             count: item.count || 0
           };
         })
@@ -174,7 +137,7 @@ function App() {
         setMoves([]);
         setCustomArrows([]);
         setSelectedMove("");
-        setError("No matching Kaggle dataset moves were found for this position history.");
+        setError("Stockfish did not return usable legal moves for this position.");
         return;
       }
 
@@ -186,7 +149,7 @@ function App() {
       setMoves([]);
       setCustomArrows([]);
       setSelectedMove("");
-      setError("Unable to fetch move predictions from the Kaggle dataset.");
+      setError("Unable to fetch move predictions from Stockfish.");
     }
   }
 

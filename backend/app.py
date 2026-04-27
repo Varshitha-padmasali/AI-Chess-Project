@@ -1,20 +1,29 @@
-import csv
-from collections import Counter
+import re
+import subprocess
 from pathlib import Path
 
-import joblib
 from flask import Flask, jsonify, request
 
 try:
-    import chess
+    import joblib
 except ImportError:  # pragma: no cover - depends on local environment
-    chess = None
+    joblib = None
 
 app = Flask(__name__)
 
-opening_model = joblib.load("../models/opening_model.pkl")
-DATASET_PATH = Path(__file__).resolve().parent.parent / "dataset" / "chess_games.csv"
-DATASET_GAMES = None
+BASE_DIR = Path(__file__).resolve().parent
+MODELS_DIR = BASE_DIR.parent / "models"
+OPENING_MODEL_PATH = MODELS_DIR / "opening_model.pkl"
+STOCKFISH_BINARY = BASE_DIR / "engine" / "stockfish" / "stockfish-macos-m1-apple-silicon"
+DEFAULT_STOCKFISH_DEPTH = 14
+DEFAULT_TOP_N = 3
+
+OPENING_MODEL = None
+MULTIPV_PATTERN = re.compile(r"\bmultipv\s+(\d+)\b")
+SCORE_CP_PATTERN = re.compile(r"\bscore cp (-?\d+)\b")
+SCORE_MATE_PATTERN = re.compile(r"\bscore mate (-?\d+)\b")
+PV_PATTERN = re.compile(r"\bpv\s+(.+)$")
+
 
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -32,16 +41,21 @@ def after_request(response):
 def home():
     return "AI Chess Backend Running"
 
+
 @app.route("/predict_opening", methods=["POST"])
 def predict_opening():
-    data = request.get_json()
+    model = get_opening_model()
+    if model is None:
+        return jsonify({
+            "error": "Opening model is unavailable because joblib is not installed."
+        }), 500
+
+    data = request.get_json(silent=True) or {}
     moves = data.get("moves", "")
+    result = model.predict([moves])[0]
 
-    result = opening_model.predict([moves])[0]
+    return jsonify({"opening": result})
 
-    return jsonify({
-        "opening": result
-    })
 
 @app.route("/predict", methods=["POST", "OPTIONS"])
 def predict():
@@ -49,88 +63,161 @@ def predict():
         return add_cors_headers(jsonify({"ok": True}))
 
     payload = request.get_json(silent=True) or {}
-    history = payload.get("history") or []
-    top_n = int(payload.get("top_n") or 3)
+    fen = (payload.get("fen") or "").strip()
+    top_n = int(payload.get("top_n") or DEFAULT_TOP_N)
+    depth = int(payload.get("depth") or DEFAULT_STOCKFISH_DEPTH)
 
-    if isinstance(history, str):
-        history_tokens = history.split()
-    else:
-        history_tokens = [str(move).strip() for move in history if str(move).strip()]
+    if not fen:
+      return jsonify({"error": "FEN is required."}), 400
 
-    best_moves, matched_prefix_length, support = get_best_moves_from_dataset(
-        history_tokens, top_n=top_n
-    )
-
-    if not best_moves:
+    if not STOCKFISH_BINARY.exists():
         return jsonify({
-            "best_moves": [],
-            "matched_prefix_length": matched_prefix_length,
-            "support": support,
-            "message": "No dataset matches found for this move history."
-        })
+            "error": f"Stockfish binary not found at {STOCKFISH_BINARY}"
+        }), 500
+
+    try:
+        best_moves = query_stockfish(fen=fen, top_n=top_n, depth=depth)
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 500
 
     return jsonify({
         "best_moves": best_moves,
-        "matched_prefix_length": matched_prefix_length,
-        "support": support
+        "engine": "Stockfish 18",
+        "depth": depth,
     })
 
 
-def load_dataset_games():
-    global DATASET_GAMES
+def get_opening_model():
+    global OPENING_MODEL
 
-    if DATASET_GAMES is not None:
-        return DATASET_GAMES
+    if OPENING_MODEL is not None:
+        return OPENING_MODEL
 
-    games = []
+    if joblib is None or not OPENING_MODEL_PATH.exists():
+        return None
 
-    with DATASET_PATH.open(newline="", encoding="utf-8") as dataset_file:
-        reader = csv.DictReader(dataset_file)
-
-        for row in reader:
-            moves = (row.get("moves") or "").split()
-            if moves:
-                games.append(moves)
-
-    DATASET_GAMES = games
-    return DATASET_GAMES
+    OPENING_MODEL = joblib.load(OPENING_MODEL_PATH)
+    return OPENING_MODEL
 
 
-def get_best_moves_from_dataset(history_tokens, top_n=3):
-    dataset_games = load_dataset_games()
-    prefix_length = len(history_tokens)
-    current_prefix = history_tokens[:]
+def query_stockfish(fen, top_n=DEFAULT_TOP_N, depth=DEFAULT_STOCKFISH_DEPTH):
+    process = subprocess.Popen(
+        [str(STOCKFISH_BINARY)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
 
-    while prefix_length >= 0:
-        counts = Counter()
-        support = 0
+    if process.stdin is None or process.stdout is None:
+        raise RuntimeError("Failed to start Stockfish process.")
 
-        for game_moves in dataset_games:
-            if len(game_moves) <= prefix_length:
-                continue
+    lines_to_send = [
+        "uci",
+        f"setoption name MultiPV value {top_n}",
+        "isready",
+        "ucinewgame",
+        f"position fen {fen}",
+        f"go depth {depth}",
+    ]
 
-            if game_moves[:prefix_length] == current_prefix:
-                counts[game_moves[prefix_length]] += 1
-                support += 1
+    for line in lines_to_send:
+        process.stdin.write(f"{line}\n")
+    process.stdin.flush()
 
-        if counts:
-            ranked_moves = counts.most_common(top_n)
-            return [
-                {
-                    "move": move,
-                    "reason": (
-                        f"Seen {count} times in the Kaggle dataset after the first "
-                        f"{prefix_length} half-moves."
-                    ),
-                    "count": count,
-                }
-                for move, count in ranked_moves
-            ], prefix_length, support
+    move_data = {}
+    ready_seen = False
 
-        prefix_length -= 1
-        current_prefix = history_tokens[:prefix_length]
+    for raw_line in process.stdout:
+        line = raw_line.strip()
 
-    return [], 0, 0
+        if line == "readyok":
+            ready_seen = True
+            continue
+
+        if not ready_seen:
+            continue
+
+        if line.startswith("info") and " pv " in line and " multipv " in line:
+            parsed = parse_stockfish_info(line)
+            if parsed is not None:
+                move_data[parsed["rank"]] = parsed
+
+        if line.startswith("bestmove"):
+            break
+
+    process.stdin.write("quit\n")
+    process.stdin.flush()
+    stdout, stderr = process.communicate(timeout=2)
+
+    if process.returncode not in (0, None):
+        raise RuntimeError(f"Stockfish exited unexpectedly: {stderr or stdout}")
+
+    ranked_moves = [move_data[key] for key in sorted(move_data.keys())[:top_n]]
+
+    if not ranked_moves:
+        raise RuntimeError("Stockfish did not return any moves for this position.")
+
+    return [
+        {
+            "move": item["move"],
+            "pv": item["pv"],
+            "reason": build_stockfish_reason(item, depth),
+            "score": item["score"],
+            "score_type": item["score_type"],
+            "rank": item["rank"],
+        }
+        for item in ranked_moves
+    ]
+
+
+def parse_stockfish_info(line):
+    multipv_match = MULTIPV_PATTERN.search(line)
+    pv_match = PV_PATTERN.search(line)
+
+    if multipv_match is None or pv_match is None:
+        return None
+
+    pv_moves = pv_match.group(1).split()
+    if not pv_moves:
+        return None
+
+    mate_match = SCORE_MATE_PATTERN.search(line)
+    cp_match = SCORE_CP_PATTERN.search(line)
+
+    if mate_match is not None:
+        score_value = int(mate_match.group(1))
+        score_type = "mate"
+    elif cp_match is not None:
+        score_value = int(cp_match.group(1))
+        score_type = "cp"
+    else:
+        score_value = 0
+        score_type = "cp"
+
+    return {
+        "rank": int(multipv_match.group(1)),
+        "move": pv_moves[0],
+        "pv": pv_moves,
+        "score": score_value,
+        "score_type": score_type,
+    }
+
+
+def build_stockfish_reason(item, depth):
+    if item["score_type"] == "mate":
+        if item["score"] > 0:
+            evaluation = f"finds mate in {item['score']}"
+        else:
+            evaluation = f"avoids a line losing by mate in {abs(item['score'])}"
+    else:
+        sign = "+" if item["score"] >= 0 else ""
+        evaluation = f"evaluates the position at {sign}{item['score'] / 100:.2f}"
+
+    return (
+        f"Stockfish choice #{item['rank']} at depth {depth}; "
+        f"it {evaluation}."
+    )
 
 
 if __name__ == "__main__":
