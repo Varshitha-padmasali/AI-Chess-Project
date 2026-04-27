@@ -7,6 +7,7 @@ import "./App.css";
 const INITIAL_GAME = new Chess();
 const INITIAL_FEN = INITIAL_GAME.fen();
 const DEFAULT_FEN_SUFFIX = " w - - 0 1";
+
 function normalizeFenInput(value) {
   const trimmedValue = value.trim();
 
@@ -37,6 +38,73 @@ function App() {
   const [mode, setMode] = useState("");
   const [customArrows, setCustomArrows] = useState([]);
   const [selectedMove, setSelectedMove] = useState("");
+  const [selectedSquare, setSelectedSquare] = useState("");
+  const [highlightedSquares, setHighlightedSquares] = useState({});
+
+  function clearBoardHighlights() {
+    setSelectedSquare("");
+    setHighlightedSquares({});
+  }
+
+  function showLegalMoves(square) {
+    const currentGame = new Chess(game.fen());
+    const piece = currentGame.get(square);
+
+    if (!piece || piece.color !== currentGame.turn()) {
+      clearBoardHighlights();
+      return;
+    }
+
+    const legalMoves = currentGame.moves({
+      square,
+      verbose: true
+    });
+
+    if (legalMoves.length === 0) {
+      clearBoardHighlights();
+      return;
+    }
+
+    const nextHighlightedSquares = {
+      [square]: {
+        background:
+          "radial-gradient(circle, rgba(96, 165, 250, 0.45) 0%, rgba(37, 99, 235, 0.2) 70%)",
+        boxShadow: "inset 0 0 0 2px rgba(147, 197, 253, 0.9)"
+      }
+    };
+
+    legalMoves.forEach((move) => {
+      nextHighlightedSquares[move.to] = {
+        background:
+          "radial-gradient(circle, rgba(34, 197, 94, 0.38) 0%, rgba(34, 197, 94, 0.18) 35%, transparent 36%)"
+      };
+    });
+
+    setSelectedSquare(square);
+    setHighlightedSquares(nextHighlightedSquares);
+  }
+
+  function onPieceClick({ square }) {
+    if (!square) {
+      return;
+    }
+
+    if (selectedSquare === square) {
+      clearBoardHighlights();
+      return;
+    }
+
+    showLegalMoves(square);
+  }
+
+  function onSquareClick({ square }) {
+    if (!square) {
+      clearBoardHighlights();
+      return;
+    }
+
+    showLegalMoves(square);
+  }
 
   function onDrop({ sourceSquare, targetSquare }) {
     if (!targetSquare) {
@@ -63,6 +131,7 @@ function App() {
     setMoves([]);
     setCustomArrows([]);
     setSelectedMove("");
+    clearBoardHighlights();
     setError("");
 
     analyzeMove(move);
@@ -93,6 +162,7 @@ function App() {
       setMoves([]);
       setCustomArrows([]);
       setSelectedMove("");
+      clearBoardHighlights();
       setError("");
     } catch {
       setError("Invalid FEN. Please check the string and try again.");
@@ -144,11 +214,13 @@ function App() {
       setMoves(predictedMoves);
       setCustomArrows([]);
       setSelectedMove("");
+      clearBoardHighlights();
       setError("");
     } catch {
       setMoves([]);
       setCustomArrows([]);
       setSelectedMove("");
+      clearBoardHighlights();
       setError("Unable to fetch move predictions from Stockfish.");
     }
   }
@@ -225,6 +297,7 @@ function App() {
     setAnalysis("");
     setCustomArrows([]);
     setSelectedMove("");
+    clearBoardHighlights();
     setWhiteWin(50);
     setBlackWin(50);
     setTurn("White");
@@ -360,6 +433,9 @@ function App() {
                   options={{
                     position: boardFen,
                     onPieceDrop: onDrop,
+                    onPieceClick,
+                    onSquareClick,
+                    squareStyles: highlightedSquares,
                     arrows: customArrows
                   }}
                 />
