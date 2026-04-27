@@ -326,6 +326,13 @@ function App() {
       <div className="app-bg-orb app-bg-orb-right" />
 
       <main className="chess-page fade-in">
+        <div className="top-nav">
+          <button className="back-arrow-button" onClick={() => setMode("")}>
+            <span aria-hidden="true">←</span>
+            <span>Menu</span>
+          </button>
+        </div>
+
         <header className="page-header">
           <p className="hero-eyebrow">Predict Best Moves with AI</p>
           <h1 className="page-title">AI Chess Move Predictor</h1>
@@ -345,9 +352,46 @@ function App() {
           </div>
         </header>
 
-        <section className={`workspace-card ${mode === "predict" ? "workspace-card-wide" : ""}`}>
-          <div className={`workspace-grid ${mode === "predict" ? "workspace-grid-predict" : ""}`}>
-            <div className="board-card">
+        <div className="controls-block controls-block-top">
+          <div className="fen-wrapper">
+            <input
+              className="fen-input"
+              type="text"
+              value={fenInput}
+              onChange={(event) => setFenInput(event.target.value)}
+              placeholder="Paste FEN here"
+            />
+          </div>
+
+          <div className="actions-row">
+            <button className="action-button" onClick={loadFen}>
+              Load FEN
+            </button>
+            {mode === "predict" && (
+              <button className="action-button" onClick={predictMoves}>
+                Predict Moves
+              </button>
+            )}
+            {mode === "analyzer" && (
+              <button className="action-button" onClick={detectOpening}>
+                Analyze Position
+              </button>
+            )}
+            {mode === "twoPlayer" && (
+              <button className="action-button" onClick={resetGame}>
+                Reset Game
+              </button>
+            )}
+          </div>
+
+          {error && <p className="status-message error-message">{error}</p>}
+          {mode === "analyzer" && opening && <p className="status-message info-message">Opening: {opening}</p>}
+          {mode === "analyzer" && analysis && <p className="status-message success-message">{analysis}</p>}
+        </div>
+
+        <section className={`workspace-card ${mode === "predict" ? "workspace-card-wide" : "workspace-card-compact"}`}>
+          <div className={`workspace-grid ${mode === "predict" ? "workspace-grid-predict" : "workspace-grid-solo"}`}>
+            <div className={`board-card ${mode === "predict" ? "" : "board-card-solo"}`}>
               <div className="board-card-header">
                 <div>
                   <p className="section-label">Live Board</p>
@@ -412,46 +456,6 @@ function App() {
                 )}
               </aside>
             )}
-          </div>
-
-          <div className="controls-block">
-            <div className="fen-wrapper">
-              <input
-                className="fen-input"
-                type="text"
-                value={fenInput}
-                onChange={(event) => setFenInput(event.target.value)}
-                placeholder="Paste FEN here"
-              />
-            </div>
-
-            <div className="actions-row">
-              <button className="action-button action-button-secondary" onClick={() => setMode("")}>
-                Back Home
-              </button>
-              <button className="action-button" onClick={loadFen}>
-                Load FEN
-              </button>
-              {mode === "predict" && (
-                <button className="action-button" onClick={predictMoves}>
-                  Predict Moves
-                </button>
-              )}
-              {mode === "analyzer" && (
-                <button className="action-button" onClick={detectOpening}>
-                  Analyze Position
-                </button>
-              )}
-              {mode === "twoPlayer" && (
-                <button className="action-button" onClick={resetGame}>
-                  Reset Game
-                </button>
-              )}
-            </div>
-
-            {error && <p className="status-message error-message">{error}</p>}
-            {mode === "analyzer" && opening && <p className="status-message info-message">Opening: {opening}</p>}
-            {mode === "analyzer" && analysis && <p className="status-message success-message">{analysis}</p>}
           </div>
         </section>
       </main>
