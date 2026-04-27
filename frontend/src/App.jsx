@@ -24,6 +24,31 @@ function normalizeFenInput(value) {
   return trimmedValue;
 }
 
+function getCheckedKingSquare(fen) {
+  const currentGame = new Chess(fen);
+
+  if (!currentGame.inCheck()) {
+    return "";
+  }
+
+  const kingColor = currentGame.turn();
+  const board = currentGame.board();
+
+  for (let rowIndex = 0; rowIndex < board.length; rowIndex += 1) {
+    for (let columnIndex = 0; columnIndex < board[rowIndex].length; columnIndex += 1) {
+      const piece = board[rowIndex][columnIndex];
+
+      if (piece && piece.type === "k" && piece.color === kingColor) {
+        const file = String.fromCharCode(97 + columnIndex);
+        const rank = 8 - rowIndex;
+        return `${file}${rank}`;
+      }
+    }
+  }
+
+  return "";
+}
+
 function App() {
   const [game, setGame] = useState(() => new Chess());
   const [boardFen, setBoardFen] = useState(INITIAL_FEN);
@@ -40,6 +65,20 @@ function App() {
   const [selectedMove, setSelectedMove] = useState("");
   const [selectedSquare, setSelectedSquare] = useState("");
   const [highlightedSquares, setHighlightedSquares] = useState({});
+  const checkedKingSquare = getCheckedKingSquare(boardFen);
+  const boardSquareStyles = {
+    ...highlightedSquares,
+    ...(checkedKingSquare
+      ? {
+          [checkedKingSquare]: {
+            ...(highlightedSquares[checkedKingSquare] || {}),
+            background:
+              "radial-gradient(circle, rgba(248, 113, 113, 0.42) 0%, rgba(127, 29, 29, 0.28) 70%)",
+            boxShadow: "inset 0 0 0 3px rgba(248, 113, 113, 0.95), 0 0 20px rgba(220, 38, 38, 0.35)"
+          }
+        }
+      : {})
+  };
 
   function clearBoardHighlights() {
     setSelectedSquare("");
@@ -435,7 +474,7 @@ function App() {
                     onPieceDrop: onDrop,
                     onPieceClick,
                     onSquareClick,
-                    squareStyles: highlightedSquares,
+                    squareStyles: boardSquareStyles,
                     arrows: customArrows
                   }}
                 />
