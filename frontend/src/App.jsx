@@ -85,6 +85,36 @@ function App() {
     setHighlightedSquares({});
   }
 
+  function applyMove(sourceSquare, targetSquare) {
+    const gameCopy = new Chess(game.fen());
+    const move = gameCopy.move({
+      from: sourceSquare,
+      to: targetSquare,
+      promotion: "q"
+    });
+
+    if (move === null) {
+      return false;
+    }
+
+    const updatedFen = gameCopy.fen();
+
+    setGame(gameCopy);
+    setTurn(gameCopy.turn() === "w" ? "White" : "Black");
+    setBoardFen(updatedFen);
+    setFenInput(updatedFen);
+    setMoves([]);
+    setCustomArrows([]);
+    setSelectedMove("");
+    clearBoardHighlights();
+    setError("");
+
+    analyzeMove(move);
+    updateWinBar(gameCopy);
+
+    return true;
+  }
+
   function showLegalMoves(square) {
     const currentGame = new Chess(game.fen());
     const piece = currentGame.get(square);
@@ -142,6 +172,20 @@ function App() {
       return;
     }
 
+    if (selectedSquare) {
+      const currentGame = new Chess(game.fen());
+      const selectedMoves = currentGame.moves({
+        square: selectedSquare,
+        verbose: true
+      });
+      const chosenMove = selectedMoves.find((move) => move.to === square);
+
+      if (chosenMove) {
+        applyMove(selectedSquare, square);
+        return;
+      }
+    }
+
     showLegalMoves(square);
   }
 
@@ -150,33 +194,7 @@ function App() {
       return false;
     }
 
-    const gameCopy = new Chess(game.fen());
-    const move = gameCopy.move({
-      from: sourceSquare,
-      to: targetSquare,
-      promotion: "q"
-    });
-
-    if (move === null) {
-      return false;
-    }
-
-    const updatedFen = gameCopy.fen();
-
-    setGame(gameCopy);
-    setTurn(gameCopy.turn() === "w" ? "White" : "Black");
-    setBoardFen(updatedFen);
-    setFenInput(updatedFen);
-    setMoves([]);
-    setCustomArrows([]);
-    setSelectedMove("");
-    clearBoardHighlights();
-    setError("");
-
-    analyzeMove(move);
-    updateWinBar(gameCopy);
-
-    return true;
+    return applyMove(sourceSquare, targetSquare);
   }
 
   function loadFen() {
