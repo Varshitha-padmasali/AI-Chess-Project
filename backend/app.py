@@ -1,3 +1,7 @@
+import csv
+from collections import Counter
+from pathlib import Path
+
 import joblib
 from flask import Flask, jsonify, request
 
@@ -9,17 +13,8 @@ except ImportError:  # pragma: no cover - depends on local environment
 app = Flask(__name__)
 
 opening_model = joblib.load("../models/opening_model.pkl")
-
-PIECE_VALUES = {
-    chess.PAWN if chess else 1: 1,
-    chess.KNIGHT if chess else 2: 3,
-    chess.BISHOP if chess else 3: 3,
-    chess.ROOK if chess else 4: 5,
-    chess.QUEEN if chess else 5: 9,
-    chess.KING if chess else 6: 0,
-}
-CENTER_SQUARES = {"d4", "e4", "d5", "e5"}
-
+DATASET_PATH = Path(__file__).resolve().parent.parent / "dataset" / "chess_games.csv"
+DATASET_GAMES = None
 
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -53,77 +48,89 @@ def predict():
     if request.method == "OPTIONS":
         return add_cors_headers(jsonify({"ok": True}))
 
-    if chess is None:
-        return jsonify({
-            "error": "python-chess is not installed on the backend."
-        }), 500
-
     payload = request.get_json(silent=True) or {}
-    fen = (payload.get("fen") or "").strip()
+    history = payload.get("history") or []
+    top_n = int(payload.get("top_n") or 3)
 
-    if not fen:
-        return jsonify({"error": "FEN is required."}), 400
+    if isinstance(history, str):
+        history_tokens = history.split()
+    else:
+        history_tokens = [str(move).strip() for move in history if str(move).strip()]
 
-    try:
-        board = chess.Board(fen)
-    except ValueError as error:
-        return jsonify({"error": f"Invalid FEN: {error}"}), 400
+    best_moves, matched_prefix_length, support = get_best_moves_from_dataset(
+        history_tokens, top_n=top_n
+    )
 
-    best_moves = get_best_moves(board)
-    return jsonify({"best_moves": best_moves})
-
-
-def get_best_moves(board):
-    scored_moves = []
-
-    for move in board.legal_moves:
-        score = 0
-        reason_parts = []
-
-        if board.is_capture(move):
-            captured_piece = board.piece_at(move.to_square)
-            if captured_piece is not None:
-                score += 20 + PIECE_VALUES.get(captured_piece.piece_type, 0)
-                reason_parts.append(
-                    f"wins material by taking a {captured_piece.symbol().lower()}"
-                )
-
-        if move.promotion:
-            score += 30 + PIECE_VALUES.get(move.promotion, 0)
-            reason_parts.append(
-                f"promotes to a {chess.piece_name(move.promotion)}"
-            )
-
-        if board.is_castling(move):
-            score += 6
-            reason_parts.append("improves king safety by castling")
-
-        if chess.square_name(move.to_square) in CENTER_SQUARES:
-            score += 4
-            reason_parts.append("improves central control")
-
-        next_board = board.copy(stack=False)
-        next_board.push(move)
-        san = board.san(move)
-
-        if next_board.is_check():
-            score += 10
-            reason_parts.append("gives check")
-
-        if not reason_parts:
-            reason_parts.append("keeps the position flexible with a legal developing move")
-
-        scored_moves.append({
-            "move": san,
-            "reason": ", ".join(reason_parts),
-            "score": score,
+    if not best_moves:
+        return jsonify({
+            "best_moves": [],
+            "matched_prefix_length": matched_prefix_length,
+            "support": support,
+            "message": "No dataset matches found for this move history."
         })
 
-    scored_moves.sort(key=lambda item: (-item["score"], item["move"]))
-    return [
-        {"move": item["move"], "reason": item["reason"]}
-        for item in scored_moves[:3]
-    ]
+    return jsonify({
+        "best_moves": best_moves,
+        "matched_prefix_length": matched_prefix_length,
+        "support": support
+    })
+
+
+def load_dataset_games():
+    global DATASET_GAMES
+
+    if DATASET_GAMES is not None:
+        return DATASET_GAMES
+
+    games = []
+
+    with DATASET_PATH.open(newline="", encoding="utf-8") as dataset_file:
+        reader = csv.DictReader(dataset_file)
+
+        for row in reader:
+            moves = (row.get("moves") or "").split()
+            if moves:
+                games.append(moves)
+
+    DATASET_GAMES = games
+    return DATASET_GAMES
+
+
+def get_best_moves_from_dataset(history_tokens, top_n=3):
+    dataset_games = load_dataset_games()
+    prefix_length = len(history_tokens)
+    current_prefix = history_tokens[:]
+
+    while prefix_length >= 0:
+        counts = Counter()
+        support = 0
+
+        for game_moves in dataset_games:
+            if len(game_moves) <= prefix_length:
+                continue
+
+            if game_moves[:prefix_length] == current_prefix:
+                counts[game_moves[prefix_length]] += 1
+                support += 1
+
+        if counts:
+            ranked_moves = counts.most_common(top_n)
+            return [
+                {
+                    "move": move,
+                    "reason": (
+                        f"Seen {count} times in the Kaggle dataset after the first "
+                        f"{prefix_length} half-moves."
+                    ),
+                    "count": count,
+                }
+                for move, count in ranked_moves
+            ], prefix_length, support
+
+        prefix_length -= 1
+        current_prefix = history_tokens[:prefix_length]
+
+    return [], 0, 0
 
 
 if __name__ == "__main__":

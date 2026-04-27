@@ -63,54 +63,6 @@ function buildMoveReason(move) {
   return reasons.join(", ");
 }
 
-function scoreMove(move) {
-  let score = 0;
-
-  if (move.isCapture()) {
-    score += 20 + (PIECE_VALUES[move.captured] || 0);
-  }
-
-  if (move.isPromotion()) {
-    score += 30 + (PIECE_VALUES[move.promotion] || 0);
-  }
-
-  if (move.san.includes("+")) {
-    score += 10;
-  }
-
-  if (CENTER_SQUARES.has(move.to)) {
-    score += 4;
-  }
-
-  if (move.isKingsideCastle() || move.isQueensideCastle()) {
-    score += 6;
-  }
-
-  if (["n", "b"].includes(move.piece) && ["c3", "f3", "c6", "f6"].includes(move.to)) {
-    score += 3;
-  }
-
-  return score;
-}
-
-function getPredictedMoves(fen) {
-  const game = new Chess(fen);
-  const legalMoves = game.moves({ verbose: true });
-
-  return legalMoves
-    .map((move) => ({
-      move: move.san,
-      san: move.san,
-      from: move.from,
-      to: move.to,
-      reason: buildMoveReason(move),
-      score: scoreMove(move)
-    }))
-    .sort((left, right) => right.score - left.score || left.move.localeCompare(right.move))
-    .slice(0, 3)
-    .map(({ score, ...move }) => move);
-}
-
 function App() {
   const [game, setGame] = useState(() => new Chess());
   const [boardFen, setBoardFen] = useState(INITIAL_FEN);
@@ -187,9 +139,44 @@ function App() {
     }
   }
 
-  function predictMoves() {
+  async function predictMoves() {
     try {
-      const predictedMoves = getPredictedMoves(boardFen);
+      const currentGame = new Chess(boardFen);
+      const legalMoves = currentGame.moves({ verbose: true });
+      const legalMovesBySan = new Map(
+        legalMoves.map((move) => [move.san, move])
+      );
+      const response = await axios.post("http://127.0.0.1:5000/predict", {
+        history: game.history(),
+        top_n: 3
+      });
+      const datasetMoves = response.data.best_moves || [];
+      const predictedMoves = datasetMoves
+        .map((item) => {
+          const legalMove = legalMovesBySan.get(item.move);
+
+          if (!legalMove) {
+            return null;
+          }
+
+          return {
+            move: legalMove.san,
+            san: legalMove.san,
+            from: legalMove.from,
+            to: legalMove.to,
+            reason: item.reason || buildMoveReason(legalMove),
+            count: item.count || 0
+          };
+        })
+        .filter(Boolean);
+
+      if (predictedMoves.length === 0) {
+        setMoves([]);
+        setCustomArrows([]);
+        setSelectedMove("");
+        setError("No matching Kaggle dataset moves were found for this position history.");
+        return;
+      }
 
       setMoves(predictedMoves);
       setCustomArrows([]);
@@ -199,7 +186,7 @@ function App() {
       setMoves([]);
       setCustomArrows([]);
       setSelectedMove("");
-      setError("Unable to predict moves for this position.");
+      setError("Unable to fetch move predictions from the Kaggle dataset.");
     }
   }
 
