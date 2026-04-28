@@ -361,6 +361,16 @@ function App() {
     setError("");
   }
 
+  function openMode(nextMode) {
+    resetGame();
+    setMode(nextMode);
+  }
+
+  function goToMenu() {
+    resetGame();
+    setMode("");
+  }
+
   if (mode === "") {
     return (
       <div className="app-shell">
@@ -377,19 +387,19 @@ function App() {
           </div>
 
           <div className="mode-grid">
-            <button className="mode-card" onClick={() => setMode("predict")}>
+            <button className="mode-card" onClick={() => openMode("predict")}>
               <span className="mode-badge">01</span>
               <h2>Predict Next Move</h2>
               <p>Get the top 3 best moves with clear explanations and arrow guidance.</p>
             </button>
 
-            <button className="mode-card" onClick={() => setMode("analyzer")}>
+            <button className="mode-card" onClick={() => openMode("analyzer")}>
               <span className="mode-badge">02</span>
               <h2>Move Analyzer</h2>
               <p>Review the strength of your moves and understand the position better.</p>
             </button>
 
-            <button className="mode-card" onClick={() => setMode("twoPlayer")}>
+            <button className="mode-card" onClick={() => openMode("twoPlayer")}>
               <span className="mode-badge">03</span>
               <h2>2 Player Game</h2>
               <p>Play on the same board with live AI insights and responsive visuals.</p>
@@ -407,7 +417,7 @@ function App() {
 
       <main className="chess-page fade-in">
         <div className="top-nav">
-          <button className="back-arrow-button" onClick={() => setMode("")}>
+          <button className="back-arrow-button" onClick={goToMenu}>
             <span aria-hidden="true">←</span>
             <span>Menu</span>
           </button>
