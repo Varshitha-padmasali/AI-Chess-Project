@@ -59,7 +59,6 @@ function App() {
   const [analysis, setAnalysis] = useState("");
   const [whiteWin, setWhiteWin] = useState(50);
   const [blackWin, setBlackWin] = useState(50);
-  const [turn, setTurn] = useState("White");
   const [mode, setMode] = useState("");
   const [customArrows, setCustomArrows] = useState([]);
   const [selectedMove, setSelectedMove] = useState("");
@@ -85,6 +84,13 @@ function App() {
     setHighlightedSquares({});
   }
 
+  function clearBoardUiState() {
+    setCustomArrows([]);
+    setSelectedMove("");
+    clearBoardHighlights();
+    setError("");
+  }
+
   function applyMove(sourceSquare, targetSquare) {
     const gameCopy = new Chess(game.fen());
     const move = gameCopy.move({
@@ -100,14 +106,10 @@ function App() {
     const updatedFen = gameCopy.fen();
 
     setGame(gameCopy);
-    setTurn(gameCopy.turn() === "w" ? "White" : "Black");
     setBoardFen(updatedFen);
     setFenInput(updatedFen);
     setMoves([]);
-    setCustomArrows([]);
-    setSelectedMove("");
-    clearBoardHighlights();
-    setError("");
+    clearBoardUiState();
 
     analyzeMove(move);
     updateWinBar(gameCopy);
@@ -217,10 +219,7 @@ function App() {
       setBoardFen(normalizedFen);
       setFenInput(normalizedFen);
       setMoves([]);
-      setCustomArrows([]);
-      setSelectedMove("");
-      clearBoardHighlights();
-      setError("");
+      clearBoardUiState();
     } catch {
       setError("Invalid FEN. Please check the string and try again.");
     }
@@ -254,30 +253,23 @@ function App() {
             san: legalMove.san,
             from: legalMove.from,
             to: legalMove.to,
-            reason: item.reason || "Recommended by Stockfish.",
-            count: item.count || 0
+            reason: item.reason || "Recommended by Stockfish."
           };
         })
         .filter(Boolean);
 
       if (predictedMoves.length === 0) {
         setMoves([]);
-        setCustomArrows([]);
-        setSelectedMove("");
+        clearBoardUiState();
         setError("Stockfish did not return usable legal moves for this position.");
         return;
       }
 
       setMoves(predictedMoves);
-      setCustomArrows([]);
-      setSelectedMove("");
-      clearBoardHighlights();
-      setError("");
+      clearBoardUiState();
     } catch {
       setMoves([]);
-      setCustomArrows([]);
-      setSelectedMove("");
-      clearBoardHighlights();
+      clearBoardUiState();
       setError("Unable to fetch move predictions from Stockfish.");
     }
   }
@@ -304,7 +296,7 @@ function App() {
       });
 
       setOpening(response.data.opening);
-    } catch (requestError) {
+    } catch {
       setOpening("Unable to detect opening");
     }
   }
@@ -352,13 +344,10 @@ function App() {
     setMoves([]);
     setOpening("");
     setAnalysis("");
-    setCustomArrows([]);
-    setSelectedMove("");
-    clearBoardHighlights();
     setWhiteWin(50);
     setBlackWin(50);
-    setTurn("White");
-    setError("");
+    setMoves([]);
+    clearBoardUiState();
   }
 
   function openMode(nextMode) {
@@ -436,7 +425,7 @@ function App() {
             <span className="page-meta-pill">{mode === "twoPlayer" && "2 Player Game"}</span>
             {mode === "twoPlayer" && (
               <span className="page-meta-pill accent-pill">
-                Turn: {turn}
+                Turn: {game.turn() === "w" ? "White" : "Black"}
               </span>
             )}
           </div>
