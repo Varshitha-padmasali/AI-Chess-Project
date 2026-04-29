@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
@@ -7,6 +7,14 @@ import "./App.css";
 const INITIAL_GAME = new Chess();
 const INITIAL_FEN = INITIAL_GAME.fen();
 const DEFAULT_FEN_SUFFIX = " w - - 0 1";
+const DEFAULT_TIMER_MINUTES = 5;
+
+function formatClock(seconds) {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
 
 function normalizeFenInput(value) {
   const trimmedValue = value.trim();
@@ -62,6 +70,10 @@ function App() {
   const [selectedMove, setSelectedMove] = useState("");
   const [selectedSquare, setSelectedSquare] = useState("");
   const [highlightedSquares, setHighlightedSquares] = useState({});
+  const [timerMinutes, setTimerMinutes] = useState(DEFAULT_TIMER_MINUTES);
+  const [whiteTimeLeft, setWhiteTimeLeft] = useState(DEFAULT_TIMER_MINUTES * 60);
+  const [blackTimeLeft, setBlackTimeLeft] = useState(DEFAULT_TIMER_MINUTES * 60);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const checkedKingSquare = getCheckedKingSquare(game);
   const boardSquareStyles = {
     ...highlightedSquares,
@@ -89,6 +101,48 @@ function App() {
     setError("");
   }
 
+  useEffect(() => {
+    if (mode !== "twoPlayer" || !isTimerRunning) {
+      return undefined;
+    }
+
+    const activeColor = game.turn();
+    const timerId = window.setInterval(() => {
+      if (activeColor === "w") {
+        setWhiteTimeLeft((currentTime) => {
+          if (currentTime <= 1) {
+            window.clearInterval(timerId);
+            setIsTimerRunning(false);
+            setError("White ran out of time.");
+            return 0;
+          }
+
+          return currentTime - 1;
+        });
+      } else {
+        setBlackTimeLeft((currentTime) => {
+          if (currentTime <= 1) {
+            window.clearInterval(timerId);
+            setIsTimerRunning(false);
+            setError("Black ran out of time.");
+            return 0;
+          }
+
+          return currentTime - 1;
+        });
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [game, isTimerRunning, mode]);
+
+  function resetTimer(minutes = timerMinutes, shouldRun = false) {
+    setTimerMinutes(minutes);
+    setWhiteTimeLeft(minutes * 60);
+    setBlackTimeLeft(minutes * 60);
+    setIsTimerRunning(shouldRun);
+  }
+
   function applyMove(sourceSquare, targetSquare) {
     const gameCopy = new Chess(game.fen());
     const move = gameCopy.move({
@@ -108,6 +162,9 @@ function App() {
     setFenInput(updatedFen);
     setMoves([]);
     clearBoardUiState();
+    if (mode === "twoPlayer") {
+      setIsTimerRunning(true);
+    }
 
     analyzeMove(move);
     updateWinBar(gameCopy);
@@ -333,7 +390,7 @@ function App() {
     setBlackWin(blackPercent);
   }
 
-  function resetGame() {
+  function resetGame(shouldRunTimer = mode === "twoPlayer") {
     const freshGame = new Chess();
 
     setGame(freshGame);
@@ -345,16 +402,21 @@ function App() {
     setBlackWin(50);
     setMoves([]);
     clearBoardUiState();
+    resetTimer(timerMinutes, shouldRunTimer);
   }
 
   function openMode(nextMode) {
-    resetGame();
+    resetGame(false);
     setMode(nextMode);
+    if (nextMode === "twoPlayer") {
+      resetTimer(timerMinutes, true);
+    }
   }
 
   function goToMenu() {
-    resetGame();
+    resetGame(false);
     setMode("");
+    setIsTimerRunning(false);
   }
 
   if (mode === "") {
@@ -427,6 +489,33 @@ function App() {
             )}
           </div>
         </header>
+
+        {mode === "twoPlayer" && (
+          <div className="timer-panel">
+            <div className="timer-presets">
+              {[1, 5, 10].map((minutes) => (
+                <button
+                  key={minutes}
+                  className={`timer-preset-button ${timerMinutes === minutes ? "timer-preset-button-active" : ""}`}
+                  onClick={() => resetTimer(minutes, true)}
+                >
+                  {minutes} min
+                </button>
+              ))}
+            </div>
+
+            <div className="timer-clocks">
+              <div className={`clock-card ${game.turn() === "w" && isTimerRunning ? "clock-card-active" : ""}`}>
+                <span className="clock-label">White</span>
+                <span className="clock-time">{formatClock(whiteTimeLeft)}</span>
+              </div>
+              <div className={`clock-card ${game.turn() === "b" && isTimerRunning ? "clock-card-active" : ""}`}>
+                <span className="clock-label">Black</span>
+                <span className="clock-time">{formatClock(blackTimeLeft)}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="controls-block controls-block-top">
           <div className="fen-wrapper">
