@@ -24,9 +24,7 @@ function normalizeFenInput(value) {
   return trimmedValue;
 }
 
-function getCheckedKingSquare(fen) {
-  const currentGame = new Chess(fen);
-
+function getCheckedKingSquare(currentGame) {
   if (!currentGame.inCheck()) {
     return "";
   }
@@ -64,7 +62,7 @@ function App() {
   const [selectedMove, setSelectedMove] = useState("");
   const [selectedSquare, setSelectedSquare] = useState("");
   const [highlightedSquares, setHighlightedSquares] = useState({});
-  const checkedKingSquare = getCheckedKingSquare(boardFen);
+  const checkedKingSquare = getCheckedKingSquare(game);
   const boardSquareStyles = {
     ...highlightedSquares,
     ...(checkedKingSquare
@@ -341,7 +339,6 @@ function App() {
     setGame(freshGame);
     setBoardFen(freshGame.fen());
     setFenInput("");
-    setMoves([]);
     setOpening("");
     setAnalysis("");
     setWhiteWin(50);
