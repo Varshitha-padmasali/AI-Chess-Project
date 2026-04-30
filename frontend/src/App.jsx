@@ -32,6 +32,59 @@ function normalizeFenInput(value) {
   return trimmedValue;
 }
 
+function formatEngineScore(scoreType, scoreValue) {
+  if (scoreType === "mate") {
+    if (scoreValue > 0) {
+      return `Mate in ${scoreValue}`;
+    }
+
+    if (scoreValue < 0) {
+      return `Mated in ${Math.abs(scoreValue)}`;
+    }
+
+    return "Mate";
+  }
+
+  const pawnScore = scoreValue / 100;
+  const sign = pawnScore > 0 ? "+" : "";
+  return `${sign}${pawnScore.toFixed(1)}`;
+}
+
+function convertPrincipalVariationToSan(fen, pvMoves) {
+  const pvGame = new Chess(fen);
+  const sanMoves = [];
+
+  for (const uciMove of pvMoves) {
+    const move = pvGame.move({
+      from: uciMove.slice(0, 2),
+      to: uciMove.slice(2, 4),
+      promotion: uciMove.slice(4) || "q"
+    });
+
+    if (!move) {
+      break;
+    }
+
+    sanMoves.push(move.san);
+  }
+
+  return sanMoves.join(" ");
+}
+
+function buildMoveHistoryRows(moveHistory) {
+  const rows = [];
+
+  for (let index = 0; index < moveHistory.length; index += 2) {
+    rows.push({
+      moveNumber: index / 2 + 1,
+      whiteMove: moveHistory[index] || "",
+      blackMove: moveHistory[index + 1] || ""
+    });
+  }
+
+  return rows;
+}
+
 function getCheckedKingSquare(currentGame) {
   if (!currentGame.inCheck()) {
     return "";
@@ -74,6 +127,8 @@ function App() {
   const [whiteTimeLeft, setWhiteTimeLeft] = useState(DEFAULT_TIMER_MINUTES * 60);
   const [blackTimeLeft, setBlackTimeLeft] = useState(DEFAULT_TIMER_MINUTES * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [engineSummary, setEngineSummary] = useState(null);
+  const moveHistoryRows = buildMoveHistoryRows(game.history());
   const checkedKingSquare = getCheckedKingSquare(game);
   const boardSquareStyles = {
     ...highlightedSquares,
@@ -99,6 +154,10 @@ function App() {
     setSelectedMove("");
     clearBoardHighlights();
     setError("");
+  }
+
+  function clearEngineSummary() {
+    setEngineSummary(null);
   }
 
   useEffect(() => {
@@ -162,6 +221,7 @@ function App() {
     setFenInput(updatedFen);
     setMoves([]);
     clearBoardUiState();
+    clearEngineSummary();
     if (mode === "twoPlayer") {
       setIsTimerRunning(true);
     }
@@ -275,6 +335,7 @@ function App() {
       setFenInput(normalizedFen);
       setMoves([]);
       clearBoardUiState();
+      clearEngineSummary();
     } catch {
       setError("Invalid FEN. Please check the string and try again.");
     }
@@ -308,7 +369,12 @@ function App() {
             san: legalMove.san,
             from: legalMove.from,
             to: legalMove.to,
-            reason: item.reason || "Recommended by Stockfish."
+            reason: item.reason || "Recommended by Stockfish.",
+            evaluation: formatEngineScore(item.score_type, item.score),
+            principalVariation: convertPrincipalVariationToSan(boardFen, item.pv || []),
+            rank: item.rank || 0,
+            scoreType: item.score_type,
+            score: item.score
           };
         })
         .filter(Boolean);
@@ -316,15 +382,22 @@ function App() {
       if (predictedMoves.length === 0) {
         setMoves([]);
         clearBoardUiState();
+        clearEngineSummary();
         setError("Stockfish did not return usable legal moves for this position.");
         return;
       }
 
       setMoves(predictedMoves);
+      setEngineSummary({
+        bestMove: predictedMoves[0].san,
+        evaluation: predictedMoves[0].evaluation,
+        principalVariation: predictedMoves[0].principalVariation
+      });
       clearBoardUiState();
     } catch {
       setMoves([]);
       clearBoardUiState();
+      clearEngineSummary();
       setError("Unable to fetch move predictions from Stockfish.");
     }
   }
@@ -402,6 +475,7 @@ function App() {
     setBlackWin(50);
     setMoves([]);
     clearBoardUiState();
+    clearEngineSummary();
     resetTimer(timerMinutes, shouldRunTimer);
   }
 
@@ -554,6 +628,23 @@ function App() {
           {mode === "analyzer" && analysis && <p className="status-message success-message">{analysis}</p>}
         </div>
 
+        {mode === "predict" && engineSummary && (
+          <section className="engine-summary-card">
+            <div className="engine-summary-item">
+              <span className="engine-summary-label">Best Move</span>
+              <span className="engine-summary-value">{engineSummary.bestMove}</span>
+            </div>
+            <div className="engine-summary-item">
+              <span className="engine-summary-label">Evaluation</span>
+              <span className="engine-summary-value">{engineSummary.evaluation}</span>
+            </div>
+            <div className="engine-summary-item engine-summary-line">
+              <span className="engine-summary-label">Top Line</span>
+              <span className="engine-summary-line-text">{engineSummary.principalVariation}</span>
+            </div>
+          </section>
+        )}
+
         <section className={`workspace-card ${mode === "predict" ? "workspace-card-wide" : "workspace-card-compact"}`}>
           <div className={`workspace-grid ${mode === "predict" ? "workspace-grid-predict" : "workspace-grid-solo"}`}>
             <div className={`board-card ${mode === "predict" ? "" : "board-card-solo"}`}>
@@ -581,6 +672,29 @@ function App() {
                     arrows: customArrows
                   }}
                 />
+              </div>
+
+              <div className="history-card">
+                <div className="history-card-header">
+                  <p className="section-label">Game Record</p>
+                  <h3 className="history-title">Move History</h3>
+                </div>
+
+                {moveHistoryRows.length === 0 ? (
+                  <div className="history-empty">
+                    No moves yet.
+                  </div>
+                ) : (
+                  <div className="history-list">
+                    {moveHistoryRows.map((row) => (
+                      <div key={row.moveNumber} className="history-row">
+                        <span className="history-move-number">{row.moveNumber}.</span>
+                        <span className="history-move">{row.whiteMove}</span>
+                        <span className="history-move">{row.blackMove || "-"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -612,11 +726,16 @@ function App() {
                           }]);
                           setSelectedMove(move.san);
                         }}
-                      >
+                        >
                         <span className="move-rank">#{index + 1}</span>
                         <div className="move-content">
-                          <div className="move-name">{move.san}</div>
+                          <div className="move-header-row">
+                            <div className="move-name">{move.san}</div>
+                            <div className="move-evaluation">{move.evaluation}</div>
+                          </div>
                           <div className="move-reason">{move.reason}</div>
+                          <div className="move-line-label">Principal variation</div>
+                          <div className="move-line-text">{move.principalVariation}</div>
                         </div>
                       </button>
                     ))}
