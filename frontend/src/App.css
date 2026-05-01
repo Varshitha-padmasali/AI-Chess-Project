@@ -179,6 +179,97 @@
   backdrop-filter: blur(14px);
 }
 
+.setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 900px;
+  margin: 1.5rem auto 0;
+  padding: 1.2rem;
+  border: 1px solid rgba(94, 234, 212, 0.12);
+  border-radius: 1.35rem;
+  background: rgba(10, 20, 27, 0.68);
+  backdrop-filter: blur(16px);
+}
+
+.setup-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.setup-field,
+.setup-option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.setup-label {
+  color: #d8e3eb;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.setup-input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  border-radius: 0.95rem;
+  background: rgba(12, 24, 32, 0.9);
+  color: #f8fafc;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.setup-input:focus {
+  border-color: rgba(45, 212, 191, 0.62);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.14);
+}
+
+.setup-row,
+.setup-choice-row,
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.setup-row {
+  justify-content: space-between;
+}
+
+.setup-option-group {
+  flex: 1 1 280px;
+}
+
+.setup-choice-button {
+  padding: 0.72rem 1.1rem;
+  border: 1px solid rgba(94, 234, 212, 0.16);
+  border-radius: 999px;
+  background: rgba(12, 24, 32, 0.9);
+  color: #d8e3eb;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.setup-choice-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(251, 191, 36, 0.34);
+}
+
+.setup-choice-button-active {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(120, 53, 15, 0.22);
+  color: #fde68a;
+}
+
 .timer-panel {
   display: flex;
   flex-direction: column;
@@ -657,6 +748,9 @@
   .workspace-grid-predict {
     grid-template-columns: 1fr;
   }
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
   .workspace-card,
   .landing-page,
   .chess-page {
@@ -708,6 +802,16 @@
   .page-meta-pill {
     width: 100%;
     text-align: center;
+  }
+
+  .setup-row,
+  .setup-choice-row,
+  .setup-actions {
+    flex-direction: column;
+  }
+
+  .setup-choice-button {
+    width: 100%;
   }
 
   .move-card {

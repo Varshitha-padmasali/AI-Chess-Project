@@ -8,6 +8,8 @@ const INITIAL_GAME = new Chess();
 const INITIAL_FEN = INITIAL_GAME.fen();
 const DEFAULT_FEN_SUFFIX = " w - - 0 1";
 const DEFAULT_TIMER_MINUTES = 5;
+const DEFAULT_PLAYER_ONE_NAME = "Player 1";
+const DEFAULT_PLAYER_TWO_NAME = "Player 2";
 
 function formatClock(seconds) {
   const safeSeconds = Math.max(0, seconds);
@@ -128,7 +130,13 @@ function App() {
   const [blackTimeLeft, setBlackTimeLeft] = useState(DEFAULT_TIMER_MINUTES * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [engineSummary, setEngineSummary] = useState(null);
+  const [playerOneName, setPlayerOneName] = useState(DEFAULT_PLAYER_ONE_NAME);
+  const [playerTwoName, setPlayerTwoName] = useState(DEFAULT_PLAYER_TWO_NAME);
+  const [playerOneColor, setPlayerOneColor] = useState("white");
+  const [isTwoPlayerStarted, setIsTwoPlayerStarted] = useState(false);
   const moveHistoryRows = buildMoveHistoryRows(game.history());
+  const whitePlayerName = playerOneColor === "white" ? playerOneName : playerTwoName;
+  const blackPlayerName = playerOneColor === "black" ? playerOneName : playerTwoName;
   const checkedKingSquare = getCheckedKingSquare(game);
   const boardSquareStyles = {
     ...highlightedSquares,
@@ -161,7 +169,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (mode !== "twoPlayer" || !isTimerRunning) {
+    if (mode !== "twoPlayer" || !isTwoPlayerStarted || !isTimerRunning) {
       return undefined;
     }
 
@@ -193,7 +201,7 @@ function App() {
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, [game, isTimerRunning, mode]);
+  }, [game, isTimerRunning, isTwoPlayerStarted, mode]);
 
   function resetTimer(minutes = timerMinutes, shouldRun = false) {
     setTimerMinutes(minutes);
@@ -202,7 +210,27 @@ function App() {
     setIsTimerRunning(shouldRun);
   }
 
+  function initializeBoardState(shouldRunTimer = false, minutes = timerMinutes) {
+    const freshGame = new Chess();
+
+    setGame(freshGame);
+    setBoardFen(freshGame.fen());
+    setFenInput("");
+    setOpening("");
+    setAnalysis("");
+    setWhiteWin(50);
+    setBlackWin(50);
+    setMoves([]);
+    clearBoardUiState();
+    clearEngineSummary();
+    resetTimer(minutes, shouldRunTimer);
+  }
+
   function applyMove(sourceSquare, targetSquare) {
+    if (mode === "twoPlayer" && !isTwoPlayerStarted) {
+      return false;
+    }
+
     const gameCopy = new Chess(game.fen());
     const move = gameCopy.move({
       from: sourceSquare,
@@ -222,7 +250,7 @@ function App() {
     setMoves([]);
     clearBoardUiState();
     clearEngineSummary();
-    if (mode === "twoPlayer") {
+    if (mode === "twoPlayer" && isTwoPlayerStarted) {
       setIsTimerRunning(true);
     }
 
@@ -233,6 +261,11 @@ function App() {
   }
 
   function showLegalMoves(square) {
+    if (mode === "twoPlayer" && !isTwoPlayerStarted) {
+      clearBoardHighlights();
+      return;
+    }
+
     const currentGame = new Chess(game.fen());
     const piece = currentGame.get(square);
 
@@ -464,33 +497,28 @@ function App() {
   }
 
   function resetGame(shouldRunTimer = mode === "twoPlayer") {
-    const freshGame = new Chess();
-
-    setGame(freshGame);
-    setBoardFen(freshGame.fen());
-    setFenInput("");
-    setOpening("");
-    setAnalysis("");
-    setWhiteWin(50);
-    setBlackWin(50);
-    setMoves([]);
-    clearBoardUiState();
-    clearEngineSummary();
-    resetTimer(timerMinutes, shouldRunTimer);
-  }
-
-  function openMode(nextMode) {
-    resetGame(false);
-    setMode(nextMode);
-    if (nextMode === "twoPlayer") {
-      resetTimer(timerMinutes, true);
+    initializeBoardState(shouldRunTimer, timerMinutes);
+    if (mode === "twoPlayer") {
+      setIsTwoPlayerStarted(false);
     }
   }
 
+  function openMode(nextMode) {
+    setMode(nextMode);
+    initializeBoardState(false, timerMinutes);
+    setIsTwoPlayerStarted(false);
+  }
+
   function goToMenu() {
-    resetGame(false);
+    initializeBoardState(false, timerMinutes);
     setMode("");
     setIsTimerRunning(false);
+    setIsTwoPlayerStarted(false);
+  }
+
+  function startTwoPlayerGame() {
+    initializeBoardState(true, timerMinutes);
+    setIsTwoPlayerStarted(true);
   }
 
   if (mode === "") {
@@ -558,37 +586,96 @@ function App() {
             <span className="page-meta-pill">{mode === "twoPlayer" && "2 Player Game"}</span>
             {mode === "twoPlayer" && (
               <span className="page-meta-pill accent-pill">
-                Turn: {game.turn() === "w" ? "White" : "Black"}
+                Turn: {game.turn() === "w" ? whitePlayerName : blackPlayerName}
               </span>
             )}
           </div>
         </header>
 
         {mode === "twoPlayer" && (
-          <div className="timer-panel">
-            <div className="timer-presets">
-              {[1, 5, 10].map((minutes) => (
-                <button
-                  key={minutes}
-                  className={`timer-preset-button ${timerMinutes === minutes ? "timer-preset-button-active" : ""}`}
-                  onClick={() => resetTimer(minutes, true)}
-                >
-                  {minutes} min
+          <>
+            <div className="setup-card">
+              <div className="setup-card-header">
+                <p className="section-label">Match Setup</p>
+                <h2 className="section-title">2 Player Game Setup</h2>
+              </div>
+
+              <div className="setup-grid">
+                <label className="setup-field">
+                  <span className="setup-label">Player 1 Name</span>
+                  <input
+                    className="setup-input"
+                    type="text"
+                    value={playerOneName}
+                    onChange={(event) => setPlayerOneName(event.target.value)}
+                    placeholder="Player 1"
+                  />
+                </label>
+
+                <label className="setup-field">
+                  <span className="setup-label">Player 2 Name</span>
+                  <input
+                    className="setup-input"
+                    type="text"
+                    value={playerTwoName}
+                    onChange={(event) => setPlayerTwoName(event.target.value)}
+                    placeholder="Player 2"
+                  />
+                </label>
+              </div>
+
+              <div className="setup-row">
+                <div className="setup-option-group">
+                  <span className="setup-label">Player 1 Color</span>
+                  <div className="setup-choice-row">
+                    {["white", "black"].map((color) => (
+                      <button
+                        key={color}
+                        className={`setup-choice-button ${playerOneColor === color ? "setup-choice-button-active" : ""}`}
+                        onClick={() => setPlayerOneColor(color)}
+                      >
+                        {color === "white" ? "White" : "Black"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="setup-option-group">
+                  <span className="setup-label">Time Control</span>
+                  <div className="setup-choice-row">
+                    {[1, 5, 10].map((minutes) => (
+                      <button
+                        key={minutes}
+                        className={`setup-choice-button ${timerMinutes === minutes ? "setup-choice-button-active" : ""}`}
+                        onClick={() => resetTimer(minutes, false)}
+                      >
+                        {minutes} min
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="setup-actions">
+                <button className="action-button" onClick={startTwoPlayerGame}>
+                  Start Game
                 </button>
-              ))}
+              </div>
             </div>
 
-            <div className="timer-clocks">
-              <div className={`clock-card ${game.turn() === "w" && isTimerRunning ? "clock-card-active" : ""}`}>
-                <span className="clock-label">White</span>
-                <span className="clock-time">{formatClock(whiteTimeLeft)}</span>
-              </div>
-              <div className={`clock-card ${game.turn() === "b" && isTimerRunning ? "clock-card-active" : ""}`}>
-                <span className="clock-label">Black</span>
-                <span className="clock-time">{formatClock(blackTimeLeft)}</span>
+            <div className="timer-panel">
+              <div className="timer-clocks">
+                <div className={`clock-card ${game.turn() === "w" && isTimerRunning ? "clock-card-active" : ""}`}>
+                  <span className="clock-label">{whitePlayerName || DEFAULT_PLAYER_ONE_NAME}</span>
+                  <span className="clock-time">{formatClock(whiteTimeLeft)}</span>
+                </div>
+                <div className={`clock-card ${game.turn() === "b" && isTimerRunning ? "clock-card-active" : ""}`}>
+                  <span className="clock-label">{blackPlayerName || DEFAULT_PLAYER_TWO_NAME}</span>
+                  <span className="clock-time">{formatClock(blackTimeLeft)}</span>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
 
         <div className="controls-block controls-block-top">
@@ -665,9 +752,11 @@ function App() {
                   key={boardFen}
                   options={{
                     position: boardFen,
+                    boardOrientation: mode === "twoPlayer" ? playerOneColor : "white",
                     onPieceDrop: onDrop,
                     onPieceClick,
                     onSquareClick,
+                    allowDragging: mode !== "twoPlayer" || isTwoPlayerStarted,
                     squareStyles: boardSquareStyles,
                     arrows: customArrows
                   }}
