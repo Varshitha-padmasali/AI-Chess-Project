@@ -192,6 +192,16 @@
   backdrop-filter: blur(16px);
 }
 
+.setup-page-card {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.2rem;
+  border: 1px solid rgba(94, 234, 212, 0.12);
+  border-radius: 1.35rem;
+  background: rgba(10, 20, 27, 0.68);
+  backdrop-filter: blur(16px);
+}
+
 .setup-card-header {
   display: flex;
   flex-direction: column;

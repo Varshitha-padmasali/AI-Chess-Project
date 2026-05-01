@@ -560,6 +560,158 @@ function App() {
     );
   }
 
+  if (mode === "twoPlayer" && !isTwoPlayerStarted) {
+    return (
+      <div className="app-shell">
+        <div className="app-bg-orb app-bg-orb-left" />
+        <div className="app-bg-orb app-bg-orb-right" />
+
+        <main className="chess-page fade-in">
+          <div className="top-nav">
+            <button className="back-arrow-button" onClick={goToMenu}>
+              <span aria-hidden="true">←</span>
+              <span>Menu</span>
+            </button>
+          </div>
+
+          <section className="setup-page-card">
+            <div className="setup-card-header">
+              <p className="section-label">Match Setup</p>
+              <h1 className="page-title">2 Player Game Setup</h1>
+              <p className="page-subtitle">
+                Enter player names, choose Player 1 color, and select the time control before starting.
+              </p>
+            </div>
+
+            <div className="setup-grid">
+              <label className="setup-field">
+                <span className="setup-label">Player 1 Name</span>
+                <input
+                  className="setup-input"
+                  type="text"
+                  value={playerOneName}
+                  onChange={(event) => setPlayerOneName(event.target.value)}
+                  placeholder="Player 1"
+                />
+              </label>
+
+              <label className="setup-field">
+                <span className="setup-label">Player 2 Name</span>
+                <input
+                  className="setup-input"
+                  type="text"
+                  value={playerTwoName}
+                  onChange={(event) => setPlayerTwoName(event.target.value)}
+                  placeholder="Player 2"
+                />
+              </label>
+            </div>
+
+            <div className="setup-row">
+              <div className="setup-option-group">
+                <span className="setup-label">Player 1 Color</span>
+                <div className="setup-choice-row">
+                  {["white", "black"].map((color) => (
+                    <button
+                      key={color}
+                      className={`setup-choice-button ${playerOneColor === color ? "setup-choice-button-active" : ""}`}
+                      onClick={() => setPlayerOneColor(color)}
+                    >
+                      {color === "white" ? "White" : "Black"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="setup-option-group">
+                <span className="setup-label">Time Control</span>
+                <div className="setup-choice-row">
+                  {[1, 5, 10].map((minutes) => (
+                    <button
+                      key={minutes}
+                      className={`setup-choice-button ${timerMinutes === minutes ? "setup-choice-button-active" : ""}`}
+                      onClick={() => resetTimer(minutes, false)}
+                    >
+                      {minutes} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="setup-actions">
+              <button className="action-button" onClick={startTwoPlayerGame}>
+                Start Game
+              </button>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (mode === "twoPlayer") {
+    return (
+      <div className="app-shell">
+        <div className="app-bg-orb app-bg-orb-left" />
+        <div className="app-bg-orb app-bg-orb-right" />
+
+        <main className="chess-page fade-in">
+          <div className="top-nav">
+            <button className="back-arrow-button" onClick={goToMenu}>
+              <span aria-hidden="true">←</span>
+              <span>Menu</span>
+            </button>
+          </div>
+
+          <div className="timer-panel">
+            <div className="timer-clocks">
+              <div className={`clock-card ${game.turn() === "w" && isTimerRunning ? "clock-card-active" : ""}`}>
+                <span className="clock-label">{whitePlayerName || DEFAULT_PLAYER_ONE_NAME}</span>
+                <span className="clock-time">{formatClock(whiteTimeLeft)}</span>
+              </div>
+              <div className={`clock-card ${game.turn() === "b" && isTimerRunning ? "clock-card-active" : ""}`}>
+                <span className="clock-label">{blackPlayerName || DEFAULT_PLAYER_TWO_NAME}</span>
+                <span className="clock-time">{formatClock(blackTimeLeft)}</span>
+              </div>
+            </div>
+          </div>
+
+          {error && <p className="status-message error-message">{error}</p>}
+
+          <section className="workspace-card workspace-card-compact">
+            <div className="workspace-grid workspace-grid-solo">
+              <div className="board-card board-card-solo">
+                <div className="board-frame">
+                  <div className="board-glow" />
+                  <Chessboard
+                    key={boardFen}
+                    options={{
+                      position: boardFen,
+                      boardOrientation: playerOneColor,
+                      onPieceDrop: onDrop,
+                      onPieceClick,
+                      onSquareClick,
+                      allowDragging: isTwoPlayerStarted,
+                      squareStyles: boardSquareStyles,
+                      arrows: customArrows
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="actions-row">
+              <button className="action-button" onClick={resetGame}>
+                Reset Game
+              </button>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <div className="app-bg-orb app-bg-orb-left" />
